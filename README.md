@@ -10,3 +10,4 @@ are utilized to compute the  proportion of beta phase in the samples.
 
 
 # Finite element analysis
+a. Expression for conversion between [d_ij] (C/N) and [e_ij] (C/m^2). 
