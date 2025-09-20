@@ -4,9 +4,15 @@
 The FTIR spectra of samples is used to quantify the absorptance spectra of different types of PVDF samples. The absorptance peaks of beta phase ( at 840 cm^{-1} ) and alpha phase ( at 763 cm^{-1})
 are utilized to compute the  proportion of beta phase in the samples.
 
+# Informatics with Natural Language Processing
+
+a. The NLP data
+
+b. Knowledge graph construction
+
+c. Named entity recognition
 
 # Machine Learning
-
 
 
 # Finite element analysis
