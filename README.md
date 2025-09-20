@@ -8,9 +8,9 @@ are utilized to compute the  proportion of beta phase in the samples.
 
 a. The NLP data
 
-b. Knowledge graph construction
+b. Knowledge graph (KG) construction
 
-c. Named entity recognition
+c. Named entity recognition (NER)
 
 # Machine Learning
 
