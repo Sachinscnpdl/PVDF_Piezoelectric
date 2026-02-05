@@ -9,6 +9,36 @@ from io import StringIO
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+
+
+import os
+import json
+import sys
+from types import ModuleType
+
+# Load properties from JSON
+current_dir = os.path.dirname(os.path.abspath(__file__))
+properties_path = os.path.join(current_dir, 'properties.json')
+
+with open(properties_path, 'r') as f:
+    properties_data = json.load(f)
+
+# Create a fake materials_properties module
+class FakeMaterialsProperties:
+    properties = properties_data
+
+# Patch sys.modules before importing piezoelectric_tensor_predictor
+sys.modules['materials_properties'] = FakeMaterialsProperties()
+
+# Now import the predictor
+try:
+    from piezoelectric_tensor_predictor import PiezoelectricTensorPredictor
+except ImportError as e:
+    # If that doesn't work, try to inject properties directly
+    import piezoelectric_tensor_predictor as predictor_module
+    predictor_module.properties = properties_data
+    from piezoelectric_tensor_predictor import PiezoelectricTensorPredictor
+
 # Import the predictor functions from the modified module
 try:
     from piezoelectric_tensor_predictor import PiezoelectricTensorPredictor
