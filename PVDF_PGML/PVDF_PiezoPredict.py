@@ -10,6 +10,15 @@ import json
 import sys
 import tempfile
 
+# Set page configuration - MUST BE FIRST STREAMLIT COMMAND
+st.set_page_config(
+    page_title="PVDF Composite Piezoelectric Predictor",
+    page_icon="⚡",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Now continue with your other code
 # Get current directory
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -123,14 +132,6 @@ except Exception as e:
         })
     
     st.warning("⚠️ Using mock predictor for demonstration")
-
-# Set page configuration
-st.set_page_config(
-    page_title="PVDF Composite Piezoelectric Predictor",
-    page_icon="⚡",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
 
 # Define custom CSS for styling
 st.markdown("""
