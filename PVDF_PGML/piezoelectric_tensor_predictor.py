@@ -7,28 +7,6 @@ Prediction script consistent with the enhanced training file:
 - Applies the same base + margin clamp when PVDF_Beta_Fraction > method ref
 - Robust loading of preprocessor and model tensors
 - Improved piezoelectric tensor estimation using empirical relations and component-specific contributions
-
-Assumed values and defaults used in the script:
-- PVDF baseline d33 by method: Electrospinning=18.0, Solution casting=6.0, Poling=6.0, Sol-gel=6.0 pC/N (hardcoded, not in JSON)
-- Aspect ratio for dopants: 10 for ['CNT','GO','G','Nfs','MXenes'], else 1 (hardcoded)
-- Gamma in interfacial term: 0.5 (hardcoded)
-- Nucleation term: 0.0 (hardcoded)
-- Fourier frequencies: [1,2,4,8,16,32,64] (hardcoded in model)
-- Dropout in model: 0.2 (but set to 0.0 for inference)
-- Factor d31: 20.0 / 32.0 ≈0.625 (based on literature ratios)
-- Factor d32: 1.50 / 32.0 ≈0.046875 (based on literature ratios)
-- Shear factor d15: (27.0 / 32.0) / sqrt(2*(1+nu_pvdf)) ≈0.525 (adjusted for literature ratio and compliance)
-- Shear factor d24: (23.0 / 32.0) / sqrt(2*(1+nu_pvdf)) ≈0.448 (adjusted for literature ratio and compliance)
-- Enforce signs: True (hardcoded, d33<0, d31>0, d32>0, d15<0, d24<0 to match standard PVDF conventions)
-- Default values when properties missing: Use PVDF values (as per code)
-- Model dimensions: Inferred from checkpoint
-- Fraction weight: 1.0 (from checkpoint if present)
-- Y mean/std: 0.0/1.0 (from checkpoint if present)
-- Beta at 1.5pct: Not in provided JSON for SnO2, so uses default beta0 (assumes no change if missing)
-- Modified ROM factor: 0.9 (hardcoded for Poisson's ratio)
-- L depolarization factor: Clamped 0-3 (hardcoded)
-- Min E_eff: 1e6 Pa, min eps_r: 1e-6 (safety in estimation)
-- For SnO2 specifically: Uses JSON values where present, defaults otherwise
 """
 import os
 import math
@@ -58,66 +36,40 @@ CFG = {
 
 # ---------------- Load properties ----------------
 def load_properties():
-    import os
-    import json
-    import importlib.util
+    # Get the directory of this script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
     
-    # Try multiple locations where the properties file might be
-    possible_locations = [
-        # Current working directory
-        ('materials_properties.py', 'current'),
-        ('properties.json', 'current'),
-        # Same directory as this script
-        (os.path.join(os.path.dirname(__file__), 'materials_properties.py'), 'module'),
-        (os.path.join(os.path.dirname(__file__), 'properties.json'), 'module'),
-        # One level up (common in project structures)
-        (os.path.join(os.path.dirname(__file__), '..', 'materials_properties.py'), 'parent'),
-        (os.path.join(os.path.dirname(__file__), '..', 'properties.json'), 'parent'),
+    # Try multiple locations
+    possible_paths = [
+        os.path.join(script_dir, 'materials_properties.py'),
+        os.path.join(script_dir, 'properties.json'),
+        'materials_properties.py',
+        'properties.json'
     ]
     
-    for file_path, location_type in possible_locations:
+    for path in possible_paths:
         try:
-            if os.path.exists(file_path):
-                if file_path.endswith('.py'):
-                    spec = importlib.util.spec_from_file_location("materials_properties", file_path)
+            if os.path.exists(path):
+                if path.endswith('.py'):
+                    spec = importlib.util.spec_from_file_location("materials_properties", path)
                     mod = importlib.util.module_from_spec(spec)
                     spec.loader.exec_module(mod)
                     if hasattr(mod, 'properties'):
-                        print(f"✓ Loaded properties from {file_path} ({location_type} dir)")
                         return mod.properties
-                    raise RuntimeError(f"materials_properties.py found at {file_path} but contains no `properties` dict.")
-                elif file_path.endswith('.json'):
-                    with open(file_path, 'r') as f:
+                elif path.endswith('.json'):
+                    with open(path, 'r') as f:
                         props = json.load(f)
                     if isinstance(props, dict):
-                        print(f"✓ Loaded properties from {file_path} ({location_type} dir)")
                         return props
         except Exception as e:
-            print(f"⚠️ Warning: Could not load from {file_path}: {e}")
             continue
     
-    # If we get here, try to look for environment variable
-    import os
-    if 'PROPERTIES_JSON' in os.environ:
-        try:
-            props = json.loads(os.environ['PROPERTIES_JSON'])
-            print("✓ Loaded properties from environment variable PROPERTIES_JSON")
-            return props
-        except Exception as e:
-            print(f"⚠️ Could not load from environment variable: {e}")
-    
-    # If nothing works, check if we're in a Streamlit context
-    try:
-        import streamlit as st
-        # If we're in Streamlit, we can show an error
-        st.error("Could not find materials_properties.py or properties.json")
-    except ImportError:
-        pass
-    
-    return default_props
+    raise FileNotFoundError(f"Could not find materials_properties.py or properties.json. Tried: {possible_paths}")
 
-
+# Load properties (will raise error if not found)
 properties = load_properties()
+
+# Get PVDF properties
 pvdf_beta_ref = float(properties['PVDF'].get('Beta'))
 pvdf_baseline_default = float(properties['PVDF'].get('Piezoelectric Coefficient (d33)'))
 pvdf_baseline_by_method = {
@@ -525,9 +477,6 @@ def predict_dataframe(checkpoint_path: str, df_input: Union[pd.DataFrame, Dict[s
     ):
         """
         Estimate d31, d32, d15, d24 (and return d33) in pC/N using a coupling-factor approach.
-        - Uses isotropic approximations for compliance (s11 ~ 1/E, s44 ~ 1/G).
-        - Uses separate factors for each component based on literature ratios.
-        - enforce_signs will set d33 negative, d31/d32 positive, d15/d24 negative to match PVDF standards.
         """
         # safe minimal values
         E_eff = max(float(E_eff), 1e6) # Pa (avoid div-by-zero)
@@ -559,19 +508,6 @@ def predict_dataframe(checkpoint_path: str, df_input: Union[pd.DataFrame, Dict[s
         d15_abs_p = float(d15_abs_C * conv)
         d24_abs_p = float(d24_abs_C * conv)
         # Apply sign conventions typical for PVDF-like materials if requested
-
-
-        # Add this right before "return df_out"
-        print("\n--- ALL CALCULATED FEATURES FOR THIS SAMPLE ---")
-        all_features = df_out.iloc[0].to_dict()
-        for feature, value in all_features.items():
-            if isinstance(value, float):
-                print(f"{feature:40}: {value:.4f}")
-            else:
-                print(f"{feature:40}: {value}")
-
-
-        
         if enforce_signs:
             d33_p = -d33_abs_p
             d31_p = +d31_abs_p
@@ -602,8 +538,6 @@ def predict_dataframe(checkpoint_path: str, df_input: Union[pd.DataFrame, Dict[s
 
     # Compute tensor components for each sample using coupling factor method
     for idx in df_out.index:
-        print(f"\n--- Processing sample {idx}: {df_out.at[idx, 'Dopants']} at {df_out.at[idx, 'Dopants fr']:.3f}% (Beta Fraction = {df_out.at[idx, 'PVDF_Beta_Fraction_used']:.4f}) ---")
-        print(f"Predicted d33 = {df_out.at[idx, 'predicted_d33']:.4f} pC/N")
         E_eff = df_out.at[idx, 'Effective Youngs Modulus']
         nu_eff = df_out.at[idx, 'Effective Poissons Ratio']
         eps_r_eff = df_out.at[idx, 'Effective Dielectric Constant']
@@ -614,27 +548,10 @@ def predict_dataframe(checkpoint_path: str, df_input: Union[pd.DataFrame, Dict[s
             eps_r_eff=eps_r_eff,
             enforce_signs=True
         )
-        # Print results
-        print("\nPhysics-based tensor components (pC/N):")
-        for comp, val in comps.items():
-            print(f"{comp}: {val:.4f}")
-        # Example matrix
-        piezo_matrix = format_piezoelectric_tensor(comps)
-        print("\nPiezoelectric tensor matrix (Physics-based) (pC/N):")
-        for r in piezo_matrix:
-            print("[ " + " ".join(f"{v:8.4f}" for v in r) + " ]")
         # Add to df_out
         for comp, val in comps.items():
             df_out.at[idx, f'phys_{comp}'] = val
 
-    pd.set_option('display.float_format', '{:,.4f}'.format)
-    cols_to_print = ['Dopants', 'Dopants fr', 'Fabrication Method', 'PVDF_Beta_Fraction_used', 'physics_base_d33', 'learned_delta_d33', 'predicted_d33']
-    print("\nPrediction results:")
-    print(df_out[cols_to_print].to_string(index=False))
-    # Save results
-    outname = "prediction_d33_margin_enhanced_with_tensor.csv"
-    df_out.to_csv(outname, index=False)
-    print(f"\nSaved {outname}")
     return df_out
 
 # convenience wrapper for single-sample predict
