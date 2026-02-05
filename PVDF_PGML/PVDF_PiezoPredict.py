@@ -7,6 +7,55 @@ from piezoelectric_tensor_predictor import predict_sample
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+
+import os
+import json
+import sys
+
+# Get current directory
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Paths
+json_path = os.path.join(current_dir, 'properties.json')
+py_path = os.path.join(current_dir, 'materials_properties.py')
+
+# Load properties from JSON
+with open(json_path, 'r') as f:
+    properties_data = json.load(f)
+
+# Create materials_properties.py with proper formatting
+with open(py_path, 'w') as f:
+    f.write('# materials_properties.py\n')
+    f.write('# Auto-generated from properties.json\n\n')
+    f.write('properties = {\n')
+    
+    # Write each dopant
+    for i, (dopant, props) in enumerate(properties_data.items()):
+        f.write(f'  "{dopant}": {{\n')
+        
+        # Write each property
+        for j, (key, value) in enumerate(props.items()):
+            # Format value properly
+            if isinstance(value, str):
+                formatted_value = f'"{value}"'
+            elif isinstance(value, (int, float)):
+                formatted_value = str(value)
+            else:
+                formatted_value = f'"{str(value)}"'
+            
+            # Check if it's the last property
+            comma = ',' if j < len(props) - 1 else ''
+            f.write(f'    "{key}": {formatted_value}{comma}\n')
+        
+        # Check if it's the last dopant
+        comma = ',' if i < len(properties_data) - 1 else ''
+        f.write(f'  }}{comma}\n')
+    
+    f.write('}\n')
+
+print(f"Created {py_path}")
+
+
 # Set page configuration
 st.set_page_config(
     page_title="PVDF Composite Piezoelectric Predictor",
