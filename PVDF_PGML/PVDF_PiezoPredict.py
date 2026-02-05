@@ -6,27 +6,70 @@ import plotly.express as px
 import matplotlib.pyplot as plt
 import seaborn as sns
 import os
-import sys
+import json
 
-# Add current directory to path to import the predictor
-current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(current_dir)
-
-# Import the actual predictor
-try:
-    from piezoelectric_tensor_predictor import predict_sample
-    PREDICTOR_AVAILABLE = True
-except ImportError as e:
-    st.error(f"Error importing predictor: {e}")
-    PREDICTOR_AVAILABLE = False
-
-# Set page configuration
+# Set page configuration - MUST BE FIRST STREAMLIT COMMAND
 st.set_page_config(
     page_title="PVDF Composite Piezoelectric Predictor",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Get current directory
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Paths
+py_path = os.path.join(current_dir, 'materials_properties.py')
+checkpoint_path = os.path.join(current_dir, 'best_phys_resid_monotonic_improved_v2.pt')
+
+# Check if required files exist
+if not os.path.exists(py_path):
+    st.error(f"❌ materials_properties.py not found at {py_path}")
+    st.stop()
+
+if not os.path.exists(checkpoint_path):
+    st.error(f"❌ Checkpoint file not found at {checkpoint_path}")
+    st.stop()
+
+# Import the predictor
+try:
+    # Import the predictor functions
+    from piezoelectric_tensor_predictor import predict_sample, predict_dataframe
+    
+    # Test the predictor with a simple call to verify it works
+    test_df = predict_sample(
+        checkpoint_path=checkpoint_path,
+        dopant='SnO2',
+        frac=1.5,
+        method='Electrospinning',
+        beta_fraction=0.5725,
+        device='cpu'
+    )
+    
+    st.success("✅ Predictor loaded successfully!")
+    
+    # Show test results
+    with st.expander("Test prediction results (SnO2, 1.5%, Electrospinning)"):
+        if isinstance(test_df, pd.DataFrame):
+            st.dataframe(test_df[['predicted_d33', 'phys_d31', 'phys_d32', 'phys_d15', 'phys_d24']])
+        else:
+            st.write(test_df)
+    
+except Exception as e:
+    st.error(f"❌ Error loading predictor: {str(e)}")
+    import traceback
+    st.code(traceback.format_exc())
+    st.stop()
+
+# Load properties for the app
+try:
+    # Import materials_properties to get the properties data
+    import materials_properties
+    properties_data = materials_properties.properties
+except ImportError as e:
+    st.error(f"❌ Error loading materials properties: {str(e)}")
+    st.stop()
 
 # Define custom CSS for styling
 st.markdown("""
@@ -94,26 +137,6 @@ st.markdown("""
     .stSlider>div>div>div {
         background-color: #4b6cb7;
     }
-    .prediction-highlight {
-        background: linear-gradient(120deg, #f0f7ff 0%, #e6f0ff 100%);
-        padding: 1.5rem;
-        border-radius: 0.75rem;
-        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
-        margin: 1.5rem 0;
-    }
-    .result-container {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 2rem;
-        border-radius: 1rem;
-        color: white;
-        margin: 1rem 0;
-    }
-    .feature-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 1rem;
-        margin: 1rem 0;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -126,34 +149,28 @@ Explore how different dopants affect the piezoelectric properties of the materia
 </p>
 """, unsafe_allow_html=True)
 
-# Check if predictor is available
-if not PREDICTOR_AVAILABLE:
-    st.error("The piezoelectric predictor module is not available. Please ensure materials_properties.py is in the correct directory.")
-    st.stop()
-
 # Sidebar for inputs
 st.sidebar.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
 st.sidebar.markdown('<h2 class="sub-header">Input Parameters</h2>', unsafe_allow_html=True)
 
-# Available fillers
-fillers = ['ZrO2', 'PZT', 'TiO2', 'DA', 'CoFe2O4', 'CNT', 'GO', 'G', 'Nfs', 'BaTiO3', 'SnO2']
+# Available fillers from properties.json
+fillers = list(properties_data.keys())
+fillers.remove('PVDF')  # Remove PVDF from the list of fillers
 
 # Input fields
 selected_filler = st.sidebar.selectbox("Select Filler", fillers)
 dopant_fraction = st.sidebar.slider("Dopant Fraction (%)", min_value=0.1, max_value=10.0, value=1.5, step=0.1)
-fabrication_method = st.sidebar.selectbox("Fabrication Method", ["Electrospinning", "Solution Casting", "Melt Pressing", "Hot Pressing"])
-beta_fraction = st.sidebar.slider("PVDF Beta Fraction", min_value=0.1, max_value=1.0, value=0.5725, step=0.01)
-device_option = st.sidebar.selectbox("Device", ["cpu", "cuda"])
+fabrication_method = st.sidebar.selectbox("Fabrication Method", ["Electrospinning", "Solution casting", "Poling", "Sol-gel"])
+beta_fraction = st.sidebar.slider("PVDF Beta Fraction (optional override)", min_value=0.1, max_value=1.0, value=0.5725, step=0.01, help="Leave as is to use calculated value")
 
-# Check if checkpoint file exists
-checkpoint_path = os.path.join(current_dir, 'best_phys_resid_monotonic_improved_v2.pt')
-checkpoint_exists = os.path.exists(checkpoint_path)
-
-if not checkpoint_exists:
-    st.sidebar.warning("⚠️ Checkpoint file not found. Using mock predictions.")
-    use_mock = st.sidebar.checkbox("Use Mock Predictions", value=True)
-else:
-    use_mock = st.sidebar.checkbox("Use Mock Predictions", value=False)
+# Display filler properties
+st.sidebar.markdown('<h3 class="sub-header">Filler Properties</h3>', unsafe_allow_html=True)
+if selected_filler in properties_data:
+    filler_props = properties_data[selected_filler]
+    # Display key properties (non-comment fields)
+    key_props = {k: v for k, v in filler_props.items() if not k.startswith('_')}
+    for key, value in key_props.items():
+        st.sidebar.text(f"{key}: {value}")
 
 # Predict button
 predict_button = st.sidebar.button("Predict Piezoelectric Properties", type="primary")
@@ -171,121 +188,48 @@ with st.expander("About PVDF Composites"):
     generated per unit force applied in the direction of polarization.
     """)
 
-# Mock prediction function (fallback)
-def mock_predict_sample(dopant, frac, method, beta_fraction):
-    """
-    Mock prediction function that simulates the behavior of the original predict_sample function
-    based on the sample output provided.
-    """
-    # Base values for different dopants (these are mock values based on the sample)
-    dopant_base_values = {
-        'SnO2': {'d33': 28.9148, 'd31': 18.0717, 'd32': 1.3554, 'd15': -24.1198, 'd24': -20.5465},
-        'ZrO2': {'d33': 26.5, 'd31': 16.8, 'd32': 1.2, 'd15': -22.5, 'd24': -19.0},
-        'PZT': {'d33': 35.2, 'd31': 22.1, 'd32': 1.8, 'd15': -29.3, 'd24': -24.8},
-        'TiO2': {'d33': 24.8, 'd31': 15.6, 'd32': 1.1, 'd15': -20.9, 'd24': -17.6},
-        'DA': {'d33': 22.3, 'd31': 14.2, 'd32': 0.9, 'd15': -18.7, 'd24': -15.8},
-        'CoFe2O4': {'d33': 27.6, 'd31': 17.4, 'd32': 1.3, 'd15': -23.1, 'd24': -19.5},
-        'CNT': {'d33': 31.4, 'd31': 19.8, 'd32': 1.5, 'd15': -26.2, 'd24': -22.1},
-        'GO': {'d33': 30.1, 'd31': 19.0, 'd32': 1.4, 'd15': -25.0, 'd24': -21.2},
-        'G': {'d33': 32.7, 'd31': 20.6, 'd32': 1.6, 'd15': -27.3, 'd24': -23.0},
-        'Nfs': {'d33': 23.5, 'd31': 14.8, 'd32': 1.0, 'd15': -19.8, 'd24': -16.7},
-        'BaTiO3': {'d33': 33.9, 'd31': 21.4, 'd32': 1.7, 'd15': -28.4, 'd24': -23.9}
-    }
-    
-    # Get base values for the selected dopant
-    base_values = dopant_base_values.get(dopant, dopant_base_values['SnO2'])
-    
-    # Adjust values based on fraction and beta fraction
-    frac_factor = 1.0 + (frac - 1.5) * 0.1  # Linear adjustment based on fraction
-    beta_factor = beta_fraction / 0.5725  # Adjustment based on beta fraction
-    
-    # Apply adjustments
-    adjusted_values = {
-        'd33': base_values['d33'] * frac_factor * beta_factor,
-        'd31': base_values['d31'] * frac_factor * beta_factor,
-        'd32': base_values['d32'] * frac_factor * beta_factor,
-        'd15': base_values['d15'] * frac_factor * beta_factor,
-        'd24': base_values['d24'] * frac_factor * beta_factor
-    }
-    
-    # Create a DataFrame similar to the original
-    df = pd.DataFrame({
-        'predicted_d33': [adjusted_values['d33']],
-        'phys_d31': [adjusted_values['d31']],
-        'phys_d32': [adjusted_values['d32']],
-        'phys_d15': [adjusted_values['d15']],
-        'phys_d24': [adjusted_values['d24']]
-    })
-    
-    return df
-
 # Main content area
 if predict_button:
     # Show loading spinner
     with st.spinner("Calculating piezoelectric properties..."):
         try:
-            if use_mock or not checkpoint_exists:
-                # Use mock prediction
-                df = mock_predict_sample(
-                    dopant=selected_filler,
-                    frac=dopant_fraction,
-                    method=fabrication_method,
-                    beta_fraction=beta_fraction
-                )
-                prediction_source = "Mock Prediction"
-            else:
-                # Use actual prediction
-                df = predict_sample(
-                    checkpoint_path=checkpoint_path,
-                    dopant=selected_filler,
-                    frac=dopant_fraction,
-                    method=fabrication_method,
-                    beta_fraction=beta_fraction,
-                    device=device_option
-                )
-                prediction_source = "Model Prediction"
-            
-            # Extract results
-            predicted_d33 = df['predicted_d33'].values[0]
-            phys_d31 = df['phys_d31'].values[0]
-            phys_d32 = df['phys_d32'].values[0]
-            phys_d15 = df['phys_d15'].values[0]
-            phys_d24 = df['phys_d24'].values[0]
-            
-            # Create tensor matrix
-            tensor_matrix = np.array([
-                [0, 0, 0, 0, phys_d15, 0],
-                [0, 0, 0, phys_d24, 0, 0],
-                [phys_d31, phys_d32, -predicted_d33, 0, 0, 0]
-            ])
-            
-            # Create features dictionary
-            features = {
-                "Dopant": selected_filler,
-                "Dopant Fraction (%)": f"{dopant_fraction:.1f}",
-                "Fabrication Method": fabrication_method,
-                "PVDF Beta Fraction": f"{beta_fraction:.4f}",
-                "Prediction Source": prediction_source,
-                "Filler Category": "Oxide" if selected_filler in ["ZrO2", "TiO2", "SnO2", "BaTiO3"] else "Other"
-            }
-            
-        except Exception as e:
-            st.error(f"Error during prediction: {str(e)}")
-            st.info("Falling back to mock prediction...")
-            df = mock_predict_sample(
+            # Make prediction using the REAL predictor
+            df = predict_sample(
+                checkpoint_path=checkpoint_path,
                 dopant=selected_filler,
                 frac=dopant_fraction,
                 method=fabrication_method,
-                beta_fraction=beta_fraction
+                beta_fraction=beta_fraction if beta_fraction else None,
+                device='cpu'
             )
-            prediction_source = "Mock Prediction (Fallback)"
+            
+            # Convert to DataFrame if it's not already
+            if not isinstance(df, pd.DataFrame):
+                df = pd.DataFrame([df])
             
             # Extract results
-            predicted_d33 = df['predicted_d33'].values[0]
-            phys_d31 = df['phys_d31'].values[0]
-            phys_d32 = df['phys_d32'].values[0]
-            phys_d15 = df['phys_d15'].values[0]
-            phys_d24 = df['phys_d24'].values[0]
+            predicted_d33 = float(df['predicted_d33'].iloc[0])
+            phys_d31 = float(df.get('phys_d31', [0])[0])
+            phys_d32 = float(df.get('phys_d32', [0])[0])
+            phys_d15 = float(df.get('phys_d15', [0])[0])
+            phys_d24 = float(df.get('phys_d24', [0])[0])
+            
+            # Extract additional features from the prediction
+            features = {
+                "Dopant": selected_filler,
+                "Dopant Fraction (%)": f"{dopant_fraction:.1f}",
+                "Fabrication Method": fabrication_method,
+                "PVDF Beta Fraction": f"{df.get('PVDF_Beta_Fraction_used', [beta_fraction])[0]:.4f}",
+                "Effective Dielectric Constant": f"{df.get('Effective Dielectric Constant', [0])[0]:.4f}",
+                "Effective Thermal Conductivity": f"{df.get('Effective Thermal Conductivity', [0])[0]:.4f}",
+                "Effective Young's Modulus": f"{df.get('Effective Youngs Modulus', [0])[0]:.4f} GPa",
+                "Effective Poisson's Ratio": f"{df.get('Effective Poissons Ratio', [0])[0]:.4f}",
+                "Effective Density": f"{df.get('Effective Density', [0])[0]:.4f} g/cm³",
+                "Effective Specific Heat Capacity": f"{df.get('Effective Specific Heat Capacity', [0])[0]:.4f} J/g·K",
+                "Physics Base d33": f"{df.get('physics_base_d33', [0])[0]:.4f} pC/N",
+                "Learned Delta d33": f"{df.get('learned_delta_d33', [0])[0]:.4f} pC/N",
+                "Filler Category": properties_data.get(selected_filler, {}).get('Filler_Category', 'Not specified')
+            }
             
             # Create tensor matrix
             tensor_matrix = np.array([
@@ -294,50 +238,51 @@ if predict_button:
                 [phys_d31, phys_d32, -predicted_d33, 0, 0, 0]
             ])
             
-            # Create features dictionary
-            features = {
-                "Dopant": selected_filler,
-                "Dopant Fraction (%)": f"{dopant_fraction:.1f}",
-                "Fabrication Method": fabrication_method,
-                "PVDF Beta Fraction": f"{beta_fraction:.4f}",
-                "Prediction Source": prediction_source,
-                "Filler Category": "Oxide" if selected_filler in ["ZrO2", "TiO2", "SnO2", "BaTiO3"] else "Other"
-            }
+            st.success("✅ Prediction completed successfully!")
+            
+        except Exception as e:
+            st.error(f"Error during prediction: {str(e)}")
+            import traceback
+            st.code(traceback.format_exc())
+            st.stop()
     
     # Display results
     st.markdown('<h2 class="sub-header">Prediction Results</h2>', unsafe_allow_html=True)
     
-    # Key metrics with enhanced highlighting
-    st.markdown('<div class="prediction-highlight">', unsafe_allow_html=True)
-    col1, col2, col3, col4 = st.columns(4)
+    # Key metrics
+    col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
         st.markdown('<div class="metric-card">', unsafe_allow_html=True)
         st.markdown('<h3 style="color: #4b6cb7;">d33</h3>', unsafe_allow_html=True)
-        st.markdown(f'<h2 style="font-weight: bold; color: #182848;">{predicted_d33:.4f} pC/N</h2>', unsafe_allow_html=True)
+        st.markdown(f'<h2 style="font-weight: bold; color: #182848;">{predicted_d33:.2f} pC/N</h2>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
     
     with col2:
         st.markdown('<div class="metric-card">', unsafe_allow_html=True)
         st.markdown('<h3 style="color: #4b6cb7;">d31</h3>', unsafe_allow_html=True)
-        st.markdown(f'<h2 style="font-weight: bold; color: #182848;">{phys_d31:.4f} pC/N</h2>', unsafe_allow_html=True)
+        st.markdown(f'<h2 style="font-weight: bold; color: #182848;">{phys_d31:.2f} pC/N</h2>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
     
     with col3:
         st.markdown('<div class="metric-card">', unsafe_allow_html=True)
         st.markdown('<h3 style="color: #4b6cb7;">d32</h3>', unsafe_allow_html=True)
-        st.markdown(f'<h2 style="font-weight: bold; color: #182848;">{phys_d32:.4f} pC/N</h2>', unsafe_allow_html=True)
+        st.markdown(f'<h2 style="font-weight: bold; color: #182848;">{phys_d32:.2f} pC/N</h2>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
     
     with col4:
         st.markdown('<div class="metric-card">', unsafe_allow_html=True)
         st.markdown('<h3 style="color: #4b6cb7;">d15</h3>', unsafe_allow_html=True)
-        st.markdown(f'<h2 style="font-weight: bold; color: #182848;">{phys_d15:.4f} pC/N</h2>', unsafe_allow_html=True)
+        st.markdown(f'<h2 style="font-weight: bold; color: #182848;">{phys_d15:.2f} pC/N</h2>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
     
-    st.markdown('</div>', unsafe_allow_html=True)
+    with col5:
+        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        st.markdown('<h3 style="color: #4b6cb7;">d24</h3>', unsafe_allow_html=True)
+        st.markdown(f'<h2 style="font-weight: bold; color: #182848;">{phys_d24:.2f} pC/N</h2>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
     
-    # Feature table with enhanced styling
+    # Feature table
     st.markdown('<h2 class="sub-header">Material Properties</h2>', unsafe_allow_html=True)
     st.markdown('<div class="data-table">', unsafe_allow_html=True)
     
@@ -362,7 +307,7 @@ if predict_button:
     
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # Piezoelectric tensor visualization with enhanced styling
+    # Piezoelectric tensor visualization
     st.markdown('<h2 class="sub-header">Piezoelectric Tensor Matrix</h2>', unsafe_allow_html=True)
     st.markdown('<div class="tensor-visualization">', unsafe_allow_html=True)
     
@@ -382,11 +327,11 @@ if predict_button:
         index=["Row 1", "Row 2", "Row 3"],
         columns=["Col 1", "Col 2", "Col 3", "Col 4", "Col 5", "Col 6"]
     )
-    st.dataframe(tensor_df.style.background_gradient(cmap='coolwarm', axis=None).format("{:.4f}"))
+    st.dataframe(tensor_df.style.background_gradient(cmap='coolwarm', axis=None).format("{:.2f}"))
     
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # Comparison chart with enhanced styling
+    # Comparison chart
     st.markdown('<h2 class="sub-header">Piezoelectric Coefficients Comparison</h2>', unsafe_allow_html=True)
     
     # Create a bar chart for the coefficients
@@ -394,8 +339,8 @@ if predict_button:
         'd33': predicted_d33,
         'd31': phys_d31,
         'd32': phys_d32,
-        'd15': phys_d15,
-        'd24': phys_d24
+        'd15': abs(phys_d15),
+        'd24': abs(phys_d24)
     }
     
     fig = px.bar(
@@ -430,27 +375,31 @@ if predict_button:
     
     st.plotly_chart(fig, use_container_width=True)
     
+    # Show full results
+    with st.expander("View Full Prediction Results"):
+        st.dataframe(df)
+    
     # Download results button
     st.markdown("---")
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if st.button("Download Results as CSV", type="secondary"):
-            # Create a DataFrame with all results
-            results_df = pd.DataFrame({
-                'Parameter': ['Dopant', 'Dopant Fraction (%)', 'Fabrication Method', 'PVDF Beta Fraction', 
-                              'd33 (pC/N)', 'd31 (pC/N)', 'd32 (pC/N)', 'd15 (pC/N)', 'd24 (pC/N)', 'Prediction Source'],
-                'Value': [selected_filler, dopant_fraction, fabrication_method, beta_fraction,
-                          predicted_d33, phys_d31, phys_d32, phys_d15, phys_d24, prediction_source]
-            })
-            
-            # Convert to CSV
-            csv = results_df.to_csv(index=False)
-            st.download_button(
-                label="Download CSV",
-                data=csv,
-                file_name=f"piezoelectric_prediction_{selected_filler}_{dopant_fraction}%.csv",
-                mime="text/csv"
-            )
+        # Create a DataFrame with all results
+        results_df = pd.DataFrame({
+            'Parameter': ['Dopant', 'Dopant Fraction (%)', 'Fabrication Method', 'PVDF Beta Fraction', 
+                          'd33 (pC/N)', 'd31 (pC/N)', 'd32 (pC/N)', 'd15 (pC/N)', 'd24 (pC/N)'],
+            'Value': [selected_filler, dopant_fraction, fabrication_method, beta_fraction,
+                      f"{predicted_d33:.4f}", f"{phys_d31:.4f}", f"{phys_d32:.4f}", 
+                      f"{phys_d15:.4f}", f"{phys_d24:.4f}"]
+        })
+        
+        # Convert to CSV
+        csv = results_df.to_csv(index=False)
+        st.download_button(
+            label="Download Results as CSV",
+            data=csv,
+            file_name=f"piezoelectric_prediction_{selected_filler}_{dopant_fraction}%.csv",
+            mime="text/csv"
+        )
 else:
     # Display placeholder content when no prediction has been made
     st.markdown('<h2 class="sub-header">Welcome to the PVDF Composite Piezoelectric Predictor</h2>', unsafe_allow_html=True)
@@ -467,24 +416,6 @@ else:
         </ol>
     </div>
     """, unsafe_allow_html=True)
-    
-    # Display example visualization
-    st.markdown('<h2 class="sub-header">Example Visualization</h2>', unsafe_allow_html=True)
-    
-    # Create a sample tensor matrix for visualization
-    sample_tensor = np.array([
-        [0, 0, 0, 0, -24.1198, 0],
-        [0, 0, 0, -20.5465, 0, 0],
-        [18.0717, 1.3554, -28.9148, 0, 0, 0]
-    ])
-    
-    fig, ax = plt.subplots(figsize=(10, 6))
-    sns.heatmap(sample_tensor, annot=True, cmap="coolwarm", center=0, 
-                fmt=".2f", linewidths=.5, ax=ax, cbar_kws={'label': 'pC/N'})
-    ax.set_title('Example Piezoelectric Tensor Matrix (pC/N)', fontsize=16)
-    ax.set_xlabel('Tensor Component')
-    ax.set_ylabel('Tensor Component')
-    st.pyplot(fig)
 
 # Footer
 st.markdown("---")
