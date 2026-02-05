@@ -9,6 +9,7 @@ import os
 import json
 import sys
 import tempfile
+import importlib.util
 
 # Set page configuration - MUST BE FIRST STREAMLIT COMMAND
 st.set_page_config(
@@ -18,17 +19,26 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Now continue with your other code
 # Get current directory
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Paths
 json_path = os.path.join(current_dir, 'properties.json')
 py_path = os.path.join(current_dir, 'materials_properties.py')
+checkpoint_path = os.path.join(current_dir, 'best_phys_resid_monotonic_improved_v2.pt')
+predictor_file = os.path.join(current_dir, 'piezoelectric_tensor_predictor.py')
 
-# Check if properties.json exists
+# Check if required files exist
 if not os.path.exists(json_path):
     st.error(f"❌ properties.json not found at {json_path}")
+    st.stop()
+
+if not os.path.exists(checkpoint_path):
+    st.error(f"❌ Checkpoint file not found at {checkpoint_path}")
+    st.stop()
+
+if not os.path.exists(predictor_file):
+    st.error(f"❌ predictor file not found at {predictor_file}")
     st.stop()
 
 # Load properties from JSON
@@ -65,73 +75,53 @@ with open(py_path, 'w') as f:
     
     f.write('}\n')
 
-print(f"Created {py_path}")
+st.info(f"Created {py_path}")
 
-# Now import the predictor
+# Now load the predictor module directly
 try:
-    # First, let's read and modify the predictor code to handle the properties loading
-    predictor_file = os.path.join(current_dir, 'piezoelectric_tensor_predictor.py')
-    with open(predictor_file, 'r') as f:
-        predictor_code = f.read()
+    # First, we need to create a mock materials_properties module
+    # Create a module for materials_properties
+    materials_properties = type(sys)('materials_properties')
+    materials_properties.properties = properties_data
+    sys.modules['materials_properties'] = materials_properties
     
-    # Modify the code to use our properties directly
-    # Replace the load_properties function
-    import re
+    # Now load the predictor module
+    spec = importlib.util.spec_from_file_location("piezoelectric_tensor_predictor", predictor_file)
+    predictor_module = importlib.util.module_from_spec(spec)
     
-    # Pattern to find the load_properties function
-    pattern = r'def load_properties\(\):.*?raise FileNotFoundError\("Please provide materials_properties\.py or properties\.json"\)'
-    replacement = f'''def load_properties():
-    return {json.dumps(properties_data, indent=2)}'''
+    # Set up the properties for the predictor module
+    predictor_module.properties = properties_data
     
-    # Replace the function
-    modified_code = re.sub(pattern, replacement, predictor_code, flags=re.DOTALL)
+    # Execute the module
+    spec.loader.exec_module(predictor_module)
     
-    if modified_code == predictor_code:
-        # If regex didn't work, do a simpler replacement
-        modified_code = predictor_code.replace(
-            'properties = load_properties()',
-            f'properties = {json.dumps(properties_data, indent=2)}'
-        )
+    # Now import the functions we need
+    predict_sample = predictor_module.predict_sample
+    predict_dataframe = predictor_module.predict_dataframe
     
-    # Write modified code to a temporary file
-    temp_dir = tempfile.mkdtemp()
-    temp_predictor_file = os.path.join(temp_dir, 'piezoelectric_tensor_predictor.py')
-    with open(temp_predictor_file, 'w') as f:
-        f.write(modified_code)
+    # Test the predictor with a simple call
+    st.info("Testing predictor...")
+    test_df = predict_sample(
+        checkpoint_path=checkpoint_path,
+        dopant='SnO2',
+        frac=1.5,
+        method='Electrospinning',
+        beta_fraction=0.5725,
+        device='cpu'
+    )
     
-    # Add temp directory to path and import
-    sys.path.insert(0, temp_dir)
-    
-    # Now import the predictor functions
-    from piezoelectric_tensor_predictor import predict_sample
+    st.success(f"✅ Predictor loaded successfully!")
+    st.write("Test prediction for SnO2, 1.5%, Electrospinning:")
+    if isinstance(test_df, pd.DataFrame):
+        st.dataframe(test_df[['predicted_d33', 'phys_d31', 'phys_d32', 'phys_d15', 'phys_d24']])
+    else:
+        st.write(test_df)
     
 except Exception as e:
-    st.error(f"Error loading predictor: {str(e)}")
-    # Create a mock predict_sample function for testing
-    def predict_sample(checkpoint_path, dopant, frac, method, beta_fraction=None, device='cpu'):
-        # Mock prediction for testing
-        return pd.DataFrame({
-            'Dopants': [dopant],
-            'Dopants fr': [frac],
-            'Fabrication Method': [method],
-            'PVDF_Beta_Fraction_used': [beta_fraction or 0.55],
-            'physics_base_d33': [20.0],
-            'learned_delta_d33': [5.0],
-            'predicted_d33': [25.0],
-            'phys_d33': [-25.0],
-            'phys_d31': [15.625],
-            'phys_d32': [1.172],
-            'phys_d15': [-13.125],
-            'phys_d24': [-11.2],
-            'Effective Dielectric Constant': [12.5],
-            'Effective Thermal Conductivity': [1.2],
-            'Effective Youngs Modulus': [3.2],
-            'Effective Poissons Ratio': [0.29],
-            'Effective Density': [2.0],
-            'Effective Specific Heat Capacity': [1.3]
-        })
-    
-    st.warning("⚠️ Using mock predictor for demonstration")
+    st.error(f"❌ Error loading predictor: {str(e)}")
+    import traceback
+    st.code(traceback.format_exc())
+    st.stop()
 
 # Define custom CSS for styling
 st.markdown("""
@@ -223,16 +213,16 @@ fillers.remove('PVDF')  # Remove PVDF from the list of fillers
 selected_filler = st.sidebar.selectbox("Select Filler", fillers)
 dopant_fraction = st.sidebar.slider("Dopant Fraction (%)", min_value=0.1, max_value=10.0, value=1.5, step=0.1)
 fabrication_method = st.sidebar.selectbox("Fabrication Method", ["Electrospinning", "Solution casting", "Poling", "Sol-gel"])
-beta_fraction = st.sidebar.slider("PVDF Beta Fraction (optional override)", min_value=0.1, max_value=1.0, value=0.5725, step=0.01)
-device_option = st.sidebar.selectbox("Device", ["cpu"])
+beta_fraction = st.sidebar.slider("PVDF Beta Fraction (optional override)", min_value=0.1, max_value=1.0, value=0.5725, step=0.01, help="Leave as is to use calculated value")
 
 # Display filler properties
 st.sidebar.markdown('<h3 class="sub-header">Filler Properties</h3>', unsafe_allow_html=True)
 if selected_filler in properties_data:
     filler_props = properties_data[selected_filler]
-    for key, value in filler_props.items():
-        if not key.startswith('_'):  # Skip comment fields
-            st.sidebar.text(f"{key}: {value}")
+    # Display key properties (non-comment fields)
+    key_props = {k: v for k, v in filler_props.items() if not k.startswith('_')}
+    for key, value in key_props.items():
+        st.sidebar.text(f"{key}: {value}")
 
 # Predict button
 predict_button = st.sidebar.button("Predict Piezoelectric Properties", type="primary")
@@ -255,15 +245,14 @@ if predict_button:
     # Show loading spinner
     with st.spinner("Calculating piezoelectric properties..."):
         try:
-            # Make prediction
-            checkpoint = 'best_phys_resid_monotonic_improved_v2.pt'
+            # Make prediction using the REAL predictor
             df = predict_sample(
-                checkpoint_path=checkpoint,
+                checkpoint_path=checkpoint_path,
                 dopant=selected_filler,
                 frac=dopant_fraction,
                 method=fabrication_method,
-                beta_fraction=beta_fraction,
-                device=device_option
+                beta_fraction=beta_fraction if beta_fraction else None,
+                device='cpu'
             )
             
             # Convert to DataFrame if it's not already
@@ -272,10 +261,10 @@ if predict_button:
             
             # Extract results
             predicted_d33 = float(df['predicted_d33'].iloc[0])
-            phys_d31 = float(df.get('phys_d31', [15.625])[0])
-            phys_d32 = float(df.get('phys_d32', [1.172])[0])
-            phys_d15 = float(df.get('phys_d15', [-13.125])[0])
-            phys_d24 = float(df.get('phys_d24', [-11.2])[0])
+            phys_d31 = float(df.get('phys_d31', [0])[0])
+            phys_d32 = float(df.get('phys_d32', [0])[0])
+            phys_d15 = float(df.get('phys_d15', [0])[0])
+            phys_d24 = float(df.get('phys_d24', [0])[0])
             
             # Extract additional features from the prediction
             features = {
@@ -283,14 +272,14 @@ if predict_button:
                 "Dopant Fraction (%)": f"{dopant_fraction:.1f}",
                 "Fabrication Method": fabrication_method,
                 "PVDF Beta Fraction": f"{df.get('PVDF_Beta_Fraction_used', [beta_fraction])[0]:.4f}",
-                "Effective Dielectric Constant": f"{df.get('Effective Dielectric Constant', [12.5])[0]:.4f}",
-                "Effective Thermal Conductivity": f"{df.get('Effective Thermal Conductivity', [1.2])[0]:.4f}",
-                "Effective Young's Modulus": f"{df.get('Effective Youngs Modulus', [3.2])[0]:.4f} GPa",
-                "Effective Poisson's Ratio": f"{df.get('Effective Poissons Ratio', [0.29])[0]:.4f}",
-                "Effective Density": f"{df.get('Effective Density', [2.0])[0]:.4f} g/cm³",
-                "Effective Specific Heat Capacity": f"{df.get('Effective Specific Heat Capacity', [1.3])[0]:.4f} J/g·K",
-                "Physics Base d33": f"{df.get('physics_base_d33', [20.0])[0]:.4f} pC/N",
-                "Learned Delta d33": f"{df.get('learned_delta_d33', [5.0])[0]:.4f} pC/N",
+                "Effective Dielectric Constant": f"{df.get('Effective Dielectric Constant', [0])[0]:.4f}",
+                "Effective Thermal Conductivity": f"{df.get('Effective Thermal Conductivity', [0])[0]:.4f}",
+                "Effective Young's Modulus": f"{df.get('Effective Youngs Modulus', [0])[0]:.4f} GPa",
+                "Effective Poisson's Ratio": f"{df.get('Effective Poissons Ratio', [0])[0]:.4f}",
+                "Effective Density": f"{df.get('Effective Density', [0])[0]:.4f} g/cm³",
+                "Effective Specific Heat Capacity": f"{df.get('Effective Specific Heat Capacity', [0])[0]:.4f} J/g·K",
+                "Physics Base d33": f"{df.get('physics_base_d33', [0])[0]:.4f} pC/N",
+                "Learned Delta d33": f"{df.get('learned_delta_d33', [0])[0]:.4f} pC/N",
                 "Filler Category": properties_data.get(selected_filler, {}).get('Filler_Category', 'Not specified')
             }
             
@@ -301,36 +290,13 @@ if predict_button:
                 [phys_d31, phys_d32, -predicted_d33, 0, 0, 0]
             ])
             
+            st.success("✅ Prediction completed successfully!")
+            
         except Exception as e:
             st.error(f"Error during prediction: {str(e)}")
-            # Use mock data for demonstration
-            predicted_d33 = 25.0
-            phys_d31 = 15.625
-            phys_d32 = 1.172
-            phys_d15 = -13.125
-            phys_d24 = -11.2
-            
-            features = {
-                "Dopant": selected_filler,
-                "Dopant Fraction (%)": f"{dopant_fraction:.1f}",
-                "Fabrication Method": fabrication_method,
-                "PVDF Beta Fraction": f"{beta_fraction:.4f}",
-                "Effective Dielectric Constant": "12.5",
-                "Effective Thermal Conductivity": "1.2",
-                "Effective Young's Modulus": "3.2 GPa",
-                "Effective Poisson's Ratio": "0.29",
-                "Effective Density": "2.0 g/cm³",
-                "Effective Specific Heat Capacity": "1.3 J/g·K",
-                "Physics Base d33": "20.0 pC/N",
-                "Learned Delta d33": "5.0 pC/N",
-                "Filler Category": properties_data.get(selected_filler, {}).get('Filler_Category', 'Not specified')
-            }
-            
-            tensor_matrix = np.array([
-                [0, 0, 0, 0, phys_d15, 0],
-                [0, 0, 0, phys_d24, 0, 0],
-                [phys_d31, phys_d32, -predicted_d33, 0, 0, 0]
-            ])
+            import traceback
+            st.code(traceback.format_exc())
+            st.stop()
     
     # Display results
     st.markdown('<h2 class="sub-header">Prediction Results</h2>', unsafe_allow_html=True)
@@ -461,6 +427,10 @@ if predict_button:
     
     st.plotly_chart(fig, use_container_width=True)
     
+    # Show full results
+    with st.expander("View Full Prediction Results"):
+        st.dataframe(df)
+    
     # Download results button
     st.markdown("---")
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -498,24 +468,6 @@ else:
         </ol>
     </div>
     """, unsafe_allow_html=True)
-    
-    # Display example visualization
-    st.markdown('<h2 class="sub-header">Example Visualization</h2>', unsafe_allow_html=True)
-    
-    # Create a sample tensor matrix for visualization
-    sample_tensor = np.array([
-        [0, 0, 0, 0, -24.12, 0],
-        [0, 0, 0, -20.55, 0, 0],
-        [18.07, 1.36, -28.91, 0, 0, 0]
-    ])
-    
-    fig, ax = plt.subplots(figsize=(10, 6))
-    sns.heatmap(sample_tensor, annot=True, cmap="coolwarm", center=0, 
-                fmt=".2f", linewidths=.5, ax=ax, cbar_kws={'label': 'pC/N'})
-    ax.set_title('Example Piezoelectric Tensor Matrix (pC/N)', fontsize=16)
-    ax.set_xlabel('Tensor Component')
-    ax.set_ylabel('Tensor Component')
-    st.pyplot(fig)
 
 # Footer
 st.markdown("---")
