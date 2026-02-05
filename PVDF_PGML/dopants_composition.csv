@@ -1,0 +1,55 @@
+piezo,Dopants,Dopants fr,Fabrication Method,d33,D33 (pC/N),ref
+PVDF-TrFe,,,,4.32,4.32±1.0,
+PVDF-TrFe,,,,30,30,
+PVDF,,12,,12,12,https://doi.org/10.1016/j.cjph.2019.10.022
+PVDF/ZrO2,ZrO2,12.2,DFT,12.2,12.2,https://doi.org/10.1016/j.cjph.2019.10.022
+PVDF/2ZrO2,ZrO2,17,DFT,17,17,https://doi.org/10.1016/j.cjph.2019.10.022
+PVDF/3ZrO2,ZrO2,13.9,DFT,13.9,13.9,https://doi.org/10.1016/j.cjph.2019.10.022
+PVDF/4.1%vol,PZT,4.1,Electro Spinning,11.82,11.82,https://doi.org/10.1016/j.ceramint.2020.03.210
+PVDF/9.6%vol,PZT,9.6,Electro Spinning,14.89,14.89,https://doi.org/10.1016/j.ceramint.2020.03.210
+PVDF/17%vol,PZT,17,Electro Spinning,17.09,17.09,https://doi.org/10.1016/j.ceramint.2020.03.210
+PVDF/39%vol,PZT,39,Electro Spinning,20.12,20.12,https://doi.org/10.1016/j.ceramint.2020.03.210
+PVDF/37%vol,PZT,37,Electro Spinning,22.93,22.93,https://doi.org/10.1016/j.ceramint.2020.03.210
+Pure,PVDF,0,Solution Casting,7.43,7.43,https://doi.org/10.1016/j.jallcom.2021.160829
+TiO2-2 wt%/PVDF,TiO2,2,Solution Casting,8.21,8.21,https://doi.org/10.1016/j.jallcom.2021.160829
+TiO2-5 wt%/PVDF,TiO2,5,Solution Casting,14.86,14.86,https://doi.org/10.1016/j.jallcom.2021.160829
+TiO2-8 wt%/PVDF,TiO2,8,Solution Casting,11.46,11.46,https://doi.org/10.1016/j.jallcom.2021.160829
+TiO2-11 wt%/PVDF,TiO2,11,Solution Casting,9.87,9.87,https://doi.org/10.1016/j.jallcom.2021.160829
+TiO2-14 wt%/PVDF,TiO2,14,Solution Casting,8.63,8.63,https://doi.org/10.1016/j.jallcom.2021.160829
+DA0.5@TiO2/PVDF,DA,0.5,Solution Casting,10.65,10.65,https://doi.org/10.1016/j.jallcom.2021.160829
+DA1.0@TiO2/PVDF,DA,1,Solution Casting,12.73,12.73,https://doi.org/10.1016/j.jallcom.2021.160829
+DA1.5@TiO2/PVDF,DA,1.5,Solution Casting,14.68,14.68,https://doi.org/10.1016/j.jallcom.2021.160829
+DA2.0@TiO2/PVDF,DA,2,Solution Casting,19.57,19.57,https://doi.org/10.1016/j.jallcom.2021.160829
+DA2.5@TiO2/PVDF,DA,2.5,Solution Casting,16.04,16.04,https://doi.org/10.1016/j.jallcom.2021.160829
+P-G%0.0,G,0,Electro Spinning,17,17,https://doi.org/10.1002/pc.25225
+P-G%0.1,G,0.1,Electro Spinning,22,22,https://doi.org/10.1002/pc.25225
+P-G%0.3,G,0.3,Electro Spinning,29,29,https://doi.org/10.1002/pc.25225
+P-G%0.5,G,0.5,Electro Spinning,33,32–34,https://doi.org/10.1002/pc.25225
+P-G%0.3/B,G,0.3,Electro Spinning,28,28,https://doi.org/10.1002/pc.25225
+P-G%0.3/B/Ce,G,0.3,Electro Spinning,21,20–22,https://doi.org/10.1002/pc.25225
+P-G%0.3/B/Er,G,0.3,Electro Spinning,12,12,https://doi.org/10.1002/pc.25225
+2%wtNfs-PVDF,Nfs,2,Electro Spinning,18,18,https://doi.org/10.1016/j.ceramint.2024.05.183
+4%wtNfs-PVDF,Nfs,4,Electro Spinning,23,23,https://doi.org/10.1016/j.ceramint.2024.05.183
+6%wtNfs-PVDF,Nfs,6,Electro Spinning,29,29,https://doi.org/10.1016/j.ceramint.2024.05.183
+8%wtNfs-PVDF,Nfs,8,Electro Spinning,23,23,https://doi.org/10.1016/j.ceramint.2024.05.183
+10%Nfs-PVDF,Nfs,10,Electro Spinning,16,16,https://doi.org/10.1016/j.ceramint.2024.05.183
+3%wtCoFe2O4-PVDF,CoFe2O4,3,Poling,5.5,5.5,https://www.beilstein-journals.org/xiv/download/pdf/202155-pdf
+5%wtCoFe2O4-PVDF,CoFe2O4,5,Poling,6.34,6.34,https://www.beilstein-journals.org/xiv/download/pdf/202155-pdf
+7%wtCoFe2O4-PVDF,CoFe2O4,7,Poling,6.1,6.1,https://www.beilstein-journals.org/xiv/download/pdf/202155-pdf
+Neat,PVDF,0,Electro Spinning,10,10,http://dx.doi.org/10.1155/2022/9452318
+0.01%CNT-PVDF,CNT,0.01,Electro Spinning,13.58,13.58,http://dx.doi.org/10.1155/2022/9452318
+0.03%CNT-PVDF,CNT,0.03,Electro Spinning,15.97,15.97,http://dx.doi.org/10.1155/2022/9452318
+0.05%CNT-PVDF,CNT,0.05,Electro Spinning,13.61,13.61,http://dx.doi.org/10.1155/2022/9452318
+0.5%GO-PVDF,GO,0.5,Electro Spinning,10.5,10.5,http://dx.doi.org/10.1155/2022/9452318
+1.5%GO-PVDF,GO,1.5,Electro Spinning,8.67,8.67,http://dx.doi.org/10.1155/2022/9452318
+2.5%GO-PVDF,GO,2.5,Electro Spinning,7.46,7.46,http://dx.doi.org/10.1155/2022/9452318
+GO%0,GO,0,Electro Spinning,14.54,14.54 ± 0.94,https://doi.org/10.1038/s41598-024-66258-9
+GO%0.5GO,GO,0.5,Electro Spinning,19.94,19.94 ± 1.43,https://doi.org/10.1038/s41598-024-66258-9
+GO%1GO,GO,1,Electro Spinning,32.07,32.07 ± 3.41,https://doi.org/10.1038/s41598-024-66258-9
+GO%1.5GO,GO,1.5,Electro Spinning,55.57,55.57 ± 2.88,https://doi.org/10.1038/s41598-024-66258-9
+GO%2GO,GO,2,Electro Spinning,47.53,47.53 ± 2.18,https://doi.org/10.1038/s41598-024-66258-9
+GO%2.5GO,GO,2.5,Electro Spinning,42.53,42.53 ± 1.14,https://doi.org/10.1038/s41598-024-66258-9
+GO%3GO,GO,3,Electro Spinning,45.02,45.02 ± 1.32,https://doi.org/10.1038/s41598-024-66258-9
+PVDF,BaTiO3,0,Sol-gel,28,28,https://doi.org/10.1080/00150193.2019.1658038
+5wt%BaTiO3,BaTiO3,5,Sol-gel,148.44,148.44,https://doi.org/10.1080/00150193.2019.1658038
+7%wtBaTiO3,BaTiO3,7,Sol-gel,31.22,31.22,https://doi.org/10.1080/00150193.2019.1658038
