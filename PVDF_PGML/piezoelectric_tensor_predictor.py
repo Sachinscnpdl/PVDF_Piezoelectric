@@ -58,19 +58,65 @@ CFG = {
 
 # ---------------- Load properties ----------------
 def load_properties():
-    if os.path.exists('materials_properties.py'):
-        spec = importlib.util.spec_from_file_location("materials_properties", "materials_properties.py")
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        if hasattr(mod, 'properties'):
-            return mod.properties
-        raise RuntimeError("materials_properties.py found but contains no `properties` dict.")
-    if os.path.exists('properties.json'):
-        with open('properties.json', 'r') as f:
-            props = json.load(f)
-        if isinstance(props, dict):
+    import os
+    import json
+    import importlib.util
+    
+    # Try multiple locations where the properties file might be
+    possible_locations = [
+        # Current working directory
+        ('materials_properties.py', 'current'),
+        ('properties.json', 'current'),
+        # Same directory as this script
+        (os.path.join(os.path.dirname(__file__), 'materials_properties.py'), 'module'),
+        (os.path.join(os.path.dirname(__file__), 'properties.json'), 'module'),
+        # One level up (common in project structures)
+        (os.path.join(os.path.dirname(__file__), '..', 'materials_properties.py'), 'parent'),
+        (os.path.join(os.path.dirname(__file__), '..', 'properties.json'), 'parent'),
+    ]
+    
+    for file_path, location_type in possible_locations:
+        try:
+            if os.path.exists(file_path):
+                if file_path.endswith('.py'):
+                    spec = importlib.util.spec_from_file_location("materials_properties", file_path)
+                    mod = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(mod)
+                    if hasattr(mod, 'properties'):
+                        print(f"✓ Loaded properties from {file_path} ({location_type} dir)")
+                        return mod.properties
+                    raise RuntimeError(f"materials_properties.py found at {file_path} but contains no `properties` dict.")
+                elif file_path.endswith('.json'):
+                    with open(file_path, 'r') as f:
+                        props = json.load(f)
+                    if isinstance(props, dict):
+                        print(f"✓ Loaded properties from {file_path} ({location_type} dir)")
+                        return props
+        except Exception as e:
+            print(f"⚠️ Warning: Could not load from {file_path}: {e}")
+            continue
+    
+    # If we get here, try to look for environment variable
+    import os
+    if 'PROPERTIES_JSON' in os.environ:
+        try:
+            props = json.loads(os.environ['PROPERTIES_JSON'])
+            print("✓ Loaded properties from environment variable PROPERTIES_JSON")
             return props
-    raise FileNotFoundError("Please provide materials_properties.py or properties.json")
+        except Exception as e:
+            print(f"⚠️ Could not load from environment variable: {e}")
+    
+    # If nothing works, check if we're in a Streamlit context
+    try:
+        import streamlit as st
+        # If we're in Streamlit, we can show an error
+        st.error("Could not find materials_properties.py or properties.json")
+    except ImportError:
+        pass
+    
+    return default_props
+
+
 properties = load_properties()
 pvdf_beta_ref = float(properties['PVDF'].get('Beta'))
 pvdf_baseline_default = float(properties['PVDF'].get('Piezoelectric Coefficient (d33)'))
