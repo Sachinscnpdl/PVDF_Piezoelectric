@@ -381,99 +381,59 @@ if predict_button:
         st.markdown('<h3 style="color: #1a2980; margin-bottom: 1rem;">Piezoelectric Tensor Matrix</h3>', unsafe_allow_html=True)
         st.markdown('<div class="tensor-visualization">', unsafe_allow_html=True)
         
-        # Create the complete tensor display with proper matrix structure
-        tensor_html = '''
-        <div style="display: flex; flex-direction: column; align-items: center;">
-            <!-- Column headers -->
-            <div style="display: flex; margin-bottom: 10px;">
-                <div style="width: 50px;"></div> <!-- Empty space for row labels -->
-        '''
+        # Display tensor matrix as a table with proper styling
+        # Create a DataFrame for the tensor
+        tensor_df = pd.DataFrame(
+            tensor_matrix,
+            index=["d1", "d2", "d3"],
+            columns=["d1", "d2", "d3", "d4", "d5", "d6"]
+        )
         
-        # Add column headers
-        for j in range(6):
-            tensor_html += f'<div style="width: 70px; text-align: center; font-weight: bold; color: #1a2980; background-color: #e4edf5; border-radius: 4px; padding: 5px; margin: 0 2px;">d{j+1}</div>'
+        # Apply styling to the DataFrame
+        def highlight_tensor(val):
+            if abs(val) < 1e-10:
+                color = '#e8f4f8'
+                text_color = '#1976d2'
+            elif val < 0:
+                color = '#ffebee'
+                text_color = '#d32f2f'
+            else:
+                color = '#fff3e0'
+                text_color = '#f57c00'
+            return f'background-color: {color}; color: {text_color}; font-weight: bold; border: 1px solid rgba(0,0,0,0.1);'
         
-        tensor_html += '''
-            </div>
-            
-            <!-- Matrix with brackets -->
+        # Display the styled DataFrame
+        styled_df = tensor_df.style.applymap(highlight_tensor)
+        st.dataframe(styled_df, use_container_width=True)
+        
+        # Add legend
+        st.markdown('''
+        <div style="display: flex; justify-content: center; margin-top: 15px; gap: 15px;">
             <div style="display: flex; align-items: center;">
-                <!-- Left bracket -->
-                <div style="font-size: 5rem; font-weight: 300; color: #1a2980; margin-right: 10px;">[</div>
-                
-                <!-- Matrix content -->
-                <div style="display: flex; flex-direction: column;">
-        '''
-        
-        # Add matrix rows with row labels
-        for i in range(3):
-            tensor_html += '<div style="display: flex; align-items: center;">'
-            # Row label
-            tensor_html += f'<div style="width: 50px; text-align: center; font-weight: bold; color: #1a2980; padding: 10px 0;">d{i+1}</div>'
-            
-            # Matrix cells
-            for j in range(6):
-                value = tensor_matrix[i, j]
-                if abs(value) < 1e-10:
-                    css_class = "tensor-zero"
-                elif value < 0:
-                    css_class = "tensor-negative"
-                else:
-                    css_class = "tensor-nonzero"
-                
-                tensor_html += f'''
-                <div class="{css_class}" 
-                     style="width: 70px; 
-                            height: 40px; 
-                            display: flex; 
-                            align-items: center; 
-                            justify-content: center; 
-                            font-weight: bold; 
-                            margin: 0 2px; 
-                            border-radius: 4px;
-                            transition: all 0.3s ease;"
-                     onmouseover="this.style.transform='scale(1.05)'" 
-                     onmouseout="this.style.transform='scale(1)'">
-                    {value:.2f}
-                </div>
-                '''
-            
-            tensor_html += '</div>'
-        
-        tensor_html += '''
-                </div>
-                
-                <!-- Right bracket -->
-                <div style="font-size: 5rem; font-weight: 300; color: #1a2980; margin-left: 10px;">]</div>
+                <div class="tensor-zero" style="width: 20px; height: 20px; margin-right: 5px;"></div>
+                <span style="font-size: 0.9rem; color: #666;">Zero</span>
             </div>
-            
-            <!-- Legend -->
-            <div style="display: flex; justify-content: center; margin-top: 20px; gap: 15px;">
-                <div style="display: flex; align-items: center;">
-                    <div class="tensor-zero" style="width: 20px; height: 20px; margin-right: 5px;"></div>
-                    <span style="font-size: 0.9rem; color: #666;">Zero</span>
-                </div>
-                <div style="display: flex; align-items: center;">
-                    <div class="tensor-nonzero" style="width: 20px; height: 20px; margin-right: 5px;"></div>
-                    <span style="font-size: 0.9rem; color: #666;">Non-zero</span>
-                </div>
-                <div style="display: flex; align-items: center;">
-                    <div class="tensor-negative" style="width: 20px; height: 20px; margin-right: 5px;"></div>
-                    <span style="font-size: 0.9rem; color: #666;">Negative</span>
-                </div>
+            <div style="display: flex; align-items: center;">
+                <div class="tensor-nonzero" style="width: 20px; height: 20px; margin-right: 5px;"></div>
+                <span style="font-size: 0.9rem; color: #666;">Non-zero</span>
             </div>
-            
-            <!-- Matrix explanation -->
-            <div style="margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 8px; text-align: left;">
-                <p style="margin: 0; color: #666; font-size: 0.9rem;">
-                <strong>Tensor Structure:</strong> The piezoelectric tensor (d<sub>ij</sub>) relates electric polarization (i-direction) to mechanical stress (j-direction). 
-                Rows 1-3 represent polarization directions (X, Y, Z), columns 1-6 represent stress/strain directions in Voigt notation.
-                </p>
+            <div style="display: flex; align-items: center;">
+                <div class="tensor-negative" style="width: 20px; height: 20px; margin-right: 5px;"></div>
+                <span style="font-size: 0.9rem; color: #666;">Negative</span>
             </div>
         </div>
-        '''
+        ''', unsafe_allow_html=True)
         
-        st.markdown(tensor_html, unsafe_allow_html=True)
+        # Add matrix explanation
+        st.markdown('''
+        <div style="margin-top: 15px; padding: 15px; background-color: #f8f9fa; border-radius: 8px;">
+            <p style="margin: 0; color: #666; font-size: 0.9rem;">
+            <strong>Tensor Structure:</strong> The piezoelectric tensor (d<sub>ij</sub>) relates electric polarization (i-direction) to mechanical stress (j-direction). 
+            Rows 1-3 represent polarization directions (X, Y, Z), columns 1-6 represent stress/strain directions in Voigt notation.
+            </p>
+        </div>
+        ''', unsafe_allow_html=True)
+        
         st.markdown('</div>', unsafe_allow_html=True)
     
     # Material properties
@@ -564,7 +524,7 @@ else:
     <div class="footnote">
         <p><strong>Reference:</strong> This work is based on the following paper (yet to be published):</p>
         <p>"Phase Characterization, Enhanced Piezoelectric Performance, and Device Potential of Electrospun PVDF/SnO2 Nanofibers via Physics-Guided Machine Learning"</p>
-        <p>Sachin Poudela,∗, Weronika Smoka, Rubi Thapab, Anna Timofiejczuka, Nele Moelansc and Anil Kunwar</p>
+        <p>Sachin Poudel,∗, Weronika Smok, Rubi Thapa, Anna Timofiejczuk, Nele Moelans and Anil Kunwar</p>
     </div>
     """, unsafe_allow_html=True)
 
