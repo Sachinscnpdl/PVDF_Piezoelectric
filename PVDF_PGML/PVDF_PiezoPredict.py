@@ -108,70 +108,100 @@ st.markdown("""
         transform: translateY(-2px);
         box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
     }
+    .tensor-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 2rem 0;
+        font-family: 'Times New Roman', serif;
+    }
+    .tensor-bracket {
+        font-size: 5rem;
+        font-weight: 300;
+        color: #1a2980;
+        line-height: 1;
+        margin: 0;
+        padding: 0;
+        height: 180px;
+        display: flex;
+        align-items: center;
+    }
     .tensor-matrix {
         display: flex;
         flex-direction: column;
         align-items: center;
-        margin: 1rem 0;
-        font-family: 'Courier New', monospace;
+        margin: 0 10px;
     }
     .tensor-row {
         display: flex;
-        width: 100%;
+        align-items: center;
         justify-content: center;
-        margin-bottom: 0.3rem;
+        margin: 0;
+        padding: 0;
+        height: 50px;
     }
     .tensor-cell {
-        width: 80px;
-        height: 50px;
+        width: 70px;
+        height: 40px;
         display: flex;
         align-items: center;
         justify-content: center;
         font-weight: bold;
-        border-radius: 0.3rem;
+        font-size: 1rem;
         margin: 0 3px;
         transition: all 0.3s ease;
-        font-size: 1.1rem;
+        border-radius: 4px;
     }
     .tensor-cell:hover {
         transform: scale(1.05);
     }
-    .tensor-header {
-        background-color: #e4edf5;
-        color: #1a2980;
-        font-weight: bold;
-    }
     .tensor-zero {
         background-color: #e8f4f8;
-        color: #64b5f6;
-        border: 1px solid #bbdefb;
+        color: #1976d2;
+        border: 1px solid #90caf9;
     }
     .tensor-nonzero {
         background-color: #fff3e0;
-        color: #ff9800;
-        border: 1px solid #ffcc02;
+        color: #f57c00;
+        border: 1px solid #ffb74d;
     }
     .tensor-negative {
         background-color: #ffebee;
-        color: #f44336;
+        color: #d32f2f;
         border: 1px solid #ef9a9a;
     }
-    .tensor-label {
-        width: 40px;
+    .tensor-labels {
+        display: flex;
+        flex-direction: column;
+        margin-right: 15px;
+    }
+    .tensor-label-row {
         height: 50px;
         display: flex;
         align-items: center;
         justify-content: center;
         font-weight: bold;
         color: #1a2980;
-        margin-right: 10px;
+        font-size: 1.1rem;
+        width: 30px;
     }
-    .tensor-bracket {
-        font-size: 4rem;
+    .tensor-headers {
+        display: flex;
+        margin-bottom: 10px;
+        margin-left: 45px;
+    }
+    .tensor-header {
+        width: 70px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         font-weight: bold;
         color: #1a2980;
-        line-height: 1;
-        margin: 0 10px;
+        font-size: 1rem;
+        margin: 0 3px;
+        background-color: #e4edf5;
+        border-radius: 4px;
     }
     .property-card {
         background: linear-gradient(135deg, #ffffff 0%, #f5f7fa 100%);
@@ -427,26 +457,28 @@ if predict_button:
             st.markdown('</div>', unsafe_allow_html=True)
     
     with col_tensor:
-        # Improved tensor visualization in proper matrix form with distinct colors
+        # Proper matrix representation with brackets
         st.markdown('<h3 style="color: #1a2980; margin-bottom: 1rem;">Piezoelectric Tensor Matrix</h3>', unsafe_allow_html=True)
         st.markdown('<div class="tensor-visualization">', unsafe_allow_html=True)
         
-        # Create a proper matrix representation with brackets
-        st.markdown('<div style="display: flex; align-items: center; justify-content: center;">', unsafe_allow_html=True)
-        st.markdown('<div class="tensor-bracket">[</div>', unsafe_allow_html=True)
-        st.markdown('<div class="tensor-matrix">', unsafe_allow_html=True)
-        
         # Column headers
-        st.markdown('<div class="tensor-row">', unsafe_allow_html=True)
-        st.markdown('<div class="tensor-label"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="tensor-headers">', unsafe_allow_html=True)
         for j in range(6):
-            st.markdown(f'<div class="tensor-cell tensor-header">d{j+1}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="tensor-header">d{j+1}</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
         
-        # Matrix rows with row labels
+        # Matrix with proper brackets
+        st.markdown('<div class="tensor-container">', unsafe_allow_html=True)
+        
+        # Left bracket
+        st.markdown('<div class="tensor-bracket">[</div>', unsafe_allow_html=True)
+        
+        # Matrix content
+        st.markdown('<div class="tensor-matrix">', unsafe_allow_html=True)
+        
+        # Row labels and matrix rows
         for i in range(3):
             st.markdown('<div class="tensor-row">', unsafe_allow_html=True)
-            st.markdown(f'<div class="tensor-label">d{i+1}</div>', unsafe_allow_html=True)
             for j in range(6):
                 value = tensor_matrix[i, j]
                 if abs(value) < 1e-10:
@@ -460,8 +492,20 @@ if predict_button:
             st.markdown('</div>', unsafe_allow_html=True)
         
         st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Right bracket
         st.markdown('<div class="tensor-bracket">]</div>', unsafe_allow_html=True)
+        
         st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Row labels
+        st.markdown('<div class="tensor-container" style="margin-top: -160px; margin-left: -20px;">', unsafe_allow_html=True)
+        st.markdown('<div class="tensor-labels">', unsafe_allow_html=True)
+        for i in range(3):
+            st.markdown(f'<div class="tensor-label-row">d{i+1}</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
         st.markdown('</div>', unsafe_allow_html=True)
     
     # Material properties
