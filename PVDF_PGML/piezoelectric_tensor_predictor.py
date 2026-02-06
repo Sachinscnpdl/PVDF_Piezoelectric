@@ -19,6 +19,10 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from sklearn.compose import ColumnTransformer  # Import this to add to safe globals
+
+# Add this line to allow ColumnTransformer in torch.load
+torch.serialization.add_safe_globals([ColumnTransformer])
 
 # ---------------- Config (match training defaults where relevant) ----------------
 CFG = {
@@ -375,8 +379,8 @@ def predict_dataframe(checkpoint_path: str, df_input: Union[pd.DataFrame, Dict[s
         df = df_input.copy().reset_index(drop=True)
     if 'Dopants' not in df.columns or 'Dopants fr' not in df.columns:
         raise ValueError("Input must include 'Dopants' and 'Dopants fr' columns.")
-    # load checkpoint
-    ckpt = torch.load(checkpoint_path, map_location='cpu')
+    # load checkpoint with weights_only=False to allow loading of ColumnTransformer
+    ckpt = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
     if 'model' not in ckpt:
         raise KeyError("Checkpoint missing 'model' key (expected a dict under key 'model').")
     state_dict = ckpt['model']
