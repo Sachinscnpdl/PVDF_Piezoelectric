@@ -108,53 +108,6 @@ st.markdown("""
         transform: translateY(-2px);
         box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
     }
-    .tensor-container {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 2rem 0;
-        font-family: 'Times New Roman', serif;
-    }
-    .tensor-bracket {
-        font-size: 5rem;
-        font-weight: 300;
-        color: #1a2980;
-        line-height: 1;
-        margin: 0;
-        padding: 0;
-        height: 180px;
-        display: flex;
-        align-items: center;
-    }
-    .tensor-matrix {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        margin: 0 10px;
-    }
-    .tensor-row {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0;
-        padding: 0;
-        height: 50px;
-    }
-    .tensor-cell {
-        width: 70px;
-        height: 40px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        font-size: 1rem;
-        margin: 0 3px;
-        transition: all 0.3s ease;
-        border-radius: 4px;
-    }
-    .tensor-cell:hover {
-        transform: scale(1.05);
-    }
     .tensor-zero {
         background-color: #e8f4f8;
         color: #1976d2;
@@ -169,39 +122,6 @@ st.markdown("""
         background-color: #ffebee;
         color: #d32f2f;
         border: 1px solid #ef9a9a;
-    }
-    .tensor-labels {
-        display: flex;
-        flex-direction: column;
-        margin-right: 15px;
-    }
-    .tensor-label-row {
-        height: 50px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        color: #1a2980;
-        font-size: 1.1rem;
-        width: 30px;
-    }
-    .tensor-headers {
-        display: flex;
-        margin-bottom: 10px;
-        margin-left: 45px;
-    }
-    .tensor-header {
-        width: 70px;
-        height: 30px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        color: #1a2980;
-        font-size: 1rem;
-        margin: 0 3px;
-        background-color: #e4edf5;
-        border-radius: 4px;
     }
     .property-card {
         background: linear-gradient(135deg, #ffffff 0%, #f5f7fa 100%);
@@ -461,24 +381,37 @@ if predict_button:
         st.markdown('<h3 style="color: #1a2980; margin-bottom: 1rem;">Piezoelectric Tensor Matrix</h3>', unsafe_allow_html=True)
         st.markdown('<div class="tensor-visualization">', unsafe_allow_html=True)
         
-        # Column headers
-        st.markdown('<div class="tensor-headers">', unsafe_allow_html=True)
+        # Create the complete tensor display with proper matrix structure
+        tensor_html = '''
+        <div style="display: flex; flex-direction: column; align-items: center;">
+            <!-- Column headers -->
+            <div style="display: flex; margin-bottom: 10px;">
+                <div style="width: 50px;"></div> <!-- Empty space for row labels -->
+        '''
+        
+        # Add column headers
         for j in range(6):
-            st.markdown(f'<div class="tensor-header">d{j+1}</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+            tensor_html += f'<div style="width: 70px; text-align: center; font-weight: bold; color: #1a2980; background-color: #e4edf5; border-radius: 4px; padding: 5px; margin: 0 2px;">d{j+1}</div>'
         
-        # Matrix with proper brackets
-        st.markdown('<div class="tensor-container">', unsafe_allow_html=True)
+        tensor_html += '''
+            </div>
+            
+            <!-- Matrix with brackets -->
+            <div style="display: flex; align-items: center;">
+                <!-- Left bracket -->
+                <div style="font-size: 5rem; font-weight: 300; color: #1a2980; margin-right: 10px;">[</div>
+                
+                <!-- Matrix content -->
+                <div style="display: flex; flex-direction: column;">
+        '''
         
-        # Left bracket
-        st.markdown('<div class="tensor-bracket">[</div>', unsafe_allow_html=True)
-        
-        # Matrix content
-        st.markdown('<div class="tensor-matrix">', unsafe_allow_html=True)
-        
-        # Row labels and matrix rows
+        # Add matrix rows with row labels
         for i in range(3):
-            st.markdown('<div class="tensor-row">', unsafe_allow_html=True)
+            tensor_html += '<div style="display: flex; align-items: center;">'
+            # Row label
+            tensor_html += f'<div style="width: 50px; text-align: center; font-weight: bold; color: #1a2980; padding: 10px 0;">d{i+1}</div>'
+            
+            # Matrix cells
             for j in range(6):
                 value = tensor_matrix[i, j]
                 if abs(value) < 1e-10:
@@ -488,24 +421,59 @@ if predict_button:
                 else:
                     css_class = "tensor-nonzero"
                 
-                st.markdown(f'<div class="tensor-cell {css_class}">{value:.2f}</div>', unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+                tensor_html += f'''
+                <div class="{css_class}" 
+                     style="width: 70px; 
+                            height: 40px; 
+                            display: flex; 
+                            align-items: center; 
+                            justify-content: center; 
+                            font-weight: bold; 
+                            margin: 0 2px; 
+                            border-radius: 4px;
+                            transition: all 0.3s ease;"
+                     onmouseover="this.style.transform='scale(1.05)'" 
+                     onmouseout="this.style.transform='scale(1)'">
+                    {value:.2f}
+                </div>
+                '''
+            
+            tensor_html += '</div>'
         
-        st.markdown('</div>', unsafe_allow_html=True)
+        tensor_html += '''
+                </div>
+                
+                <!-- Right bracket -->
+                <div style="font-size: 5rem; font-weight: 300; color: #1a2980; margin-left: 10px;">]</div>
+            </div>
+            
+            <!-- Legend -->
+            <div style="display: flex; justify-content: center; margin-top: 20px; gap: 15px;">
+                <div style="display: flex; align-items: center;">
+                    <div class="tensor-zero" style="width: 20px; height: 20px; margin-right: 5px;"></div>
+                    <span style="font-size: 0.9rem; color: #666;">Zero</span>
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <div class="tensor-nonzero" style="width: 20px; height: 20px; margin-right: 5px;"></div>
+                    <span style="font-size: 0.9rem; color: #666;">Non-zero</span>
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <div class="tensor-negative" style="width: 20px; height: 20px; margin-right: 5px;"></div>
+                    <span style="font-size: 0.9rem; color: #666;">Negative</span>
+                </div>
+            </div>
+            
+            <!-- Matrix explanation -->
+            <div style="margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 8px; text-align: left;">
+                <p style="margin: 0; color: #666; font-size: 0.9rem;">
+                <strong>Tensor Structure:</strong> The piezoelectric tensor (d<sub>ij</sub>) relates electric polarization (i-direction) to mechanical stress (j-direction). 
+                Rows 1-3 represent polarization directions (X, Y, Z), columns 1-6 represent stress/strain directions in Voigt notation.
+                </p>
+            </div>
+        </div>
+        '''
         
-        # Right bracket
-        st.markdown('<div class="tensor-bracket">]</div>', unsafe_allow_html=True)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Row labels
-        st.markdown('<div class="tensor-container" style="margin-top: -160px; margin-left: -20px;">', unsafe_allow_html=True)
-        st.markdown('<div class="tensor-labels">', unsafe_allow_html=True)
-        for i in range(3):
-            st.markdown(f'<div class="tensor-label-row">d{i+1}</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-        
+        st.markdown(tensor_html, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
     
     # Material properties
