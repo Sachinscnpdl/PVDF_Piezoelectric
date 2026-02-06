@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 import json
+import sys
 
 # Set page configuration - MUST BE FIRST STREAMLIT COMMAND
 st.set_page_config(
@@ -19,56 +20,51 @@ st.set_page_config(
 # Get current directory
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Paths
-py_path = os.path.join(current_dir, 'materials_properties.py')
+# Paths to required files
+materials_properties_path = os.path.join(current_dir, 'materials_properties.py')
 checkpoint_path = os.path.join(current_dir, 'best_phys_resid_monotonic_improved_v2.pt')
+predictor_path = os.path.join(current_dir, 'piezoelectric_tensor_predictor.py')
 
-# Check if required files exist
-if not os.path.exists(py_path):
-    st.error(f"❌ materials_properties.py not found at {py_path}")
+# Check if all required files exist
+st.sidebar.markdown("### File Status")
+
+required_files = {
+    "materials_properties.py": materials_properties_path,
+    "checkpoint file": checkpoint_path,
+    "predictor module": predictor_path
+}
+
+missing_files = []
+for file_name, file_path in required_files.items():
+    if os.path.exists(file_path):
+        st.sidebar.success(f"✓ {file_name}")
+    else:
+        st.sidebar.error(f"✗ {file_name} not found")
+        missing_files.append(file_name)
+
+if missing_files:
+    st.error(f"Missing required files: {', '.join(missing_files)}")
     st.stop()
 
-if not os.path.exists(checkpoint_path):
-    st.error(f"❌ Checkpoint file not found at {checkpoint_path}")
-    st.stop()
-
-# Import the predictor
+# Load properties for the UI
 try:
-    # Import the predictor functions
-    from piezoelectric_tensor_predictor import predict_sample, predict_dataframe
-    
-    # Test the predictor with a simple call to verify it works
-    test_df = predict_sample(
-        checkpoint_path=checkpoint_path,
-        dopant='SnO2',
-        frac=1.5,
-        method='Electrospinning',
-        beta_fraction=0.5725,
-        device='cpu'
-    )
-    
-    st.success("✅ Predictor loaded successfully!")
-    
-    # Show test results
-    with st.expander("Test prediction results (SnO2, 1.5%, Electrospinning)"):
-        if isinstance(test_df, pd.DataFrame):
-            st.dataframe(test_df[['predicted_d33', 'phys_d31', 'phys_d32', 'phys_d15', 'phys_d24']])
-        else:
-            st.write(test_df)
-    
+    # Import materials_properties module
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("materials_properties", materials_properties_path)
+    materials_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(materials_module)
+    properties_data = materials_module.properties
 except Exception as e:
-    st.error(f"❌ Error loading predictor: {str(e)}")
-    import traceback
-    st.code(traceback.format_exc())
+    st.error(f"Error loading materials_properties.py: {str(e)}")
     st.stop()
 
-# Load properties for the app
+# Import the predictor functions
 try:
-    # Import materials_properties to get the properties data
-    import materials_properties
-    properties_data = materials_properties.properties
-except ImportError as e:
-    st.error(f"❌ Error loading materials properties: {str(e)}")
+    sys.path.insert(0, current_dir)
+    from piezoelectric_tensor_predictor import predict_sample, predict_dataframe
+    st.sidebar.success("✓ Predictor module loaded")
+except Exception as e:
+    st.error(f"Error importing predictor: {str(e)}")
     st.stop()
 
 # Define custom CSS for styling
@@ -131,12 +127,6 @@ st.markdown("""
     .stButton>button:hover {
         background-color: #182848;
     }
-    .stSelectbox>div>div {
-        background-color: white;
-    }
-    .stSlider>div>div>div {
-        background-color: #4b6cb7;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -144,90 +134,79 @@ st.markdown("""
 st.markdown('<h1 class="main-header">PVDF Composite Piezoelectric Predictor</h1>', unsafe_allow_html=True)
 st.markdown("""
 <p style="text-align: center; font-size: 1.1rem; margin-bottom: 2rem;">
-Predict piezoelectric coefficients of PVDF-based composites with various fillers.
-Explore how different dopants affect the piezoelectric properties of the material.
+Predict piezoelectric coefficients of PVDF-based composites with various fillers using physics-informed machine learning.
 </p>
 """, unsafe_allow_html=True)
 
 # Sidebar for inputs
-st.sidebar.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
-st.sidebar.markdown('<h2 class="sub-header">Input Parameters</h2>', unsafe_allow_html=True)
-
-# Available fillers from properties.json
-fillers = list(properties_data.keys())
-fillers.remove('PVDF')  # Remove PVDF from the list of fillers
-
-# Input fields
-selected_filler = st.sidebar.selectbox("Select Filler", fillers)
-dopant_fraction = st.sidebar.slider("Dopant Fraction (%)", min_value=0.1, max_value=10.0, value=1.5, step=0.1)
-fabrication_method = st.sidebar.selectbox("Fabrication Method", ["Electrospinning", "Solution casting", "Poling", "Sol-gel"])
-beta_fraction = st.sidebar.slider("PVDF Beta Fraction (optional override)", min_value=0.1, max_value=1.0, value=0.5725, step=0.01, help="Leave as is to use calculated value")
-
-# Display filler properties
-st.sidebar.markdown('<h3 class="sub-header">Filler Properties</h3>', unsafe_allow_html=True)
-if selected_filler in properties_data:
-    filler_props = properties_data[selected_filler]
-    # Display key properties (non-comment fields)
-    key_props = {k: v for k, v in filler_props.items() if not k.startswith('_')}
-    for key, value in key_props.items():
-        st.sidebar.text(f"{key}: {value}")
-
-# Predict button
-predict_button = st.sidebar.button("Predict Piezoelectric Properties", type="primary")
-
-st.sidebar.markdown('</div>', unsafe_allow_html=True)
-
-# Information section
-with st.expander("About PVDF Composites"):
-    st.markdown("""
-    Polyvinylidene fluoride (PVDF) is a highly non-reactive thermoplastic fluoropolymer.
-    When combined with various fillers, it exhibits enhanced piezoelectric properties,
-    making it suitable for sensors, actuators, and energy harvesting applications.
+with st.sidebar:
+    st.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
+    st.markdown('<h2 class="sub-header">Input Parameters</h2>', unsafe_allow_html=True)
     
-    The piezoelectric coefficient d33 is a key parameter that measures the charge
-    generated per unit force applied in the direction of polarization.
-    """)
+    # Available fillers from properties
+    fillers = list(properties_data.keys())
+    fillers.remove('PVDF')  # Remove PVDF from the list of fillers
+    
+    # Input fields
+    selected_filler = st.selectbox("Select Filler", fillers)
+    dopant_fraction = st.slider("Dopant Fraction (%)", min_value=0.1, max_value=10.0, value=1.5, step=0.1)
+    fabrication_method = st.selectbox("Fabrication Method", ["Electrospinning", "Solution casting", "Poling", "Sol-gel"])
+    beta_fraction = st.number_input("Beta Fraction (optional override)", min_value=0.0, max_value=1.0, value=0.55, step=0.01, 
+                                   help="Leave as 0.0 to use calculated value based on dopant")
+    
+    # Display filler properties
+    st.markdown('<h3 class="sub-header">Filler Properties</h3>', unsafe_allow_html=True)
+    if selected_filler in properties_data:
+        filler_props = properties_data[selected_filler]
+        prop_data = []
+        for key, value in filler_props.items():
+            if not key.startswith('_') and not key.startswith('comment'):
+                prop_data.append({"Property": key, "Value": value})
+        if prop_data:
+            st.dataframe(pd.DataFrame(prop_data), use_container_width=True, hide_index=True)
+    
+    # Predict button
+    predict_button = st.button("Predict Piezoelectric Properties", type="primary", use_container_width=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # Main content area
 if predict_button:
     # Show loading spinner
     with st.spinner("Calculating piezoelectric properties..."):
         try:
-            # Make prediction using the REAL predictor
+            # Make prediction using the real predictor
             df = predict_sample(
                 checkpoint_path=checkpoint_path,
                 dopant=selected_filler,
                 frac=dopant_fraction,
                 method=fabrication_method,
-                beta_fraction=beta_fraction if beta_fraction else None,
+                beta_fraction=beta_fraction if beta_fraction > 0 else None,
                 device='cpu'
             )
             
-            # Convert to DataFrame if it's not already
+            # Ensure df is a DataFrame
             if not isinstance(df, pd.DataFrame):
                 df = pd.DataFrame([df])
             
             # Extract results
             predicted_d33 = float(df['predicted_d33'].iloc[0])
-            phys_d31 = float(df.get('phys_d31', [0])[0])
-            phys_d32 = float(df.get('phys_d32', [0])[0])
-            phys_d15 = float(df.get('phys_d15', [0])[0])
-            phys_d24 = float(df.get('phys_d24', [0])[0])
+            phys_d31 = float(df['phys_d31'].iloc[0])
+            phys_d32 = float(df['phys_d32'].iloc[0])
+            phys_d15 = float(df['phys_d15'].iloc[0])
+            phys_d24 = float(df['phys_d24'].iloc[0])
             
             # Extract additional features from the prediction
             features = {
                 "Dopant": selected_filler,
                 "Dopant Fraction (%)": f"{dopant_fraction:.1f}",
                 "Fabrication Method": fabrication_method,
-                "PVDF Beta Fraction": f"{df.get('PVDF_Beta_Fraction_used', [beta_fraction])[0]:.4f}",
-                "Effective Dielectric Constant": f"{df.get('Effective Dielectric Constant', [0])[0]:.4f}",
-                "Effective Thermal Conductivity": f"{df.get('Effective Thermal Conductivity', [0])[0]:.4f}",
-                "Effective Young's Modulus": f"{df.get('Effective Youngs Modulus', [0])[0]:.4f} GPa",
-                "Effective Poisson's Ratio": f"{df.get('Effective Poissons Ratio', [0])[0]:.4f}",
-                "Effective Density": f"{df.get('Effective Density', [0])[0]:.4f} g/cm³",
-                "Effective Specific Heat Capacity": f"{df.get('Effective Specific Heat Capacity', [0])[0]:.4f} J/g·K",
-                "Physics Base d33": f"{df.get('physics_base_d33', [0])[0]:.4f} pC/N",
-                "Learned Delta d33": f"{df.get('learned_delta_d33', [0])[0]:.4f} pC/N",
+                "PVDF Beta Fraction": f"{df['PVDF_Beta_Fraction_used'].iloc[0]:.4f}",
+                "Effective Dielectric Constant": f"{df['Effective Dielectric Constant'].iloc[0]:.4f}",
+                "Effective Young's Modulus": f"{df['Effective Youngs Modulus'].iloc[0]:.4f} GPa",
+                "Effective Poisson's Ratio": f"{df['Effective Poissons Ratio'].iloc[0]:.4f}",
+                "Physics Base d33": f"{df['physics_base_d33'].iloc[0]:.4f} pC/N",
+                "Learned Delta d33": f"{df['learned_delta_d33'].iloc[0]:.4f} pC/N",
                 "Filler Category": properties_data.get(selected_filler, {}).get('Filler_Category', 'Not specified')
             }
             
@@ -249,7 +228,7 @@ if predict_button:
     # Display results
     st.markdown('<h2 class="sub-header">Prediction Results</h2>', unsafe_allow_html=True)
     
-    # Key metrics
+    # Key metrics in cards
     col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
@@ -282,7 +261,7 @@ if predict_button:
         st.markdown(f'<h2 style="font-weight: bold; color: #182848;">{phys_d24:.2f} pC/N</h2>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
     
-    # Feature table
+    # Material properties
     st.markdown('<h2 class="sub-header">Material Properties</h2>', unsafe_allow_html=True)
     st.markdown('<div class="data-table">', unsafe_allow_html=True)
     
@@ -375,8 +354,8 @@ if predict_button:
     
     st.plotly_chart(fig, use_container_width=True)
     
-    # Show full results
-    with st.expander("View Full Prediction Results"):
+    # Show full results in expander
+    with st.expander("View Detailed Prediction Results"):
         st.dataframe(df)
     
     # Download results button
@@ -401,26 +380,29 @@ if predict_button:
             mime="text/csv"
         )
 else:
-    # Display placeholder content when no prediction has been made
+    # Welcome screen when no prediction has been made
     st.markdown('<h2 class="sub-header">Welcome to the PVDF Composite Piezoelectric Predictor</h2>', unsafe_allow_html=True)
     
     st.markdown("""
     <div class="highlight">
-        <p>This tool predicts the piezoelectric coefficients of PVDF-based composites with various fillers.</p>
+        <p>This tool predicts the piezoelectric coefficients of PVDF-based composites using physics-informed machine learning.</p>
         <p>To get started:</p>
         <ol>
-            <li>Select a filler from the dropdown in the sidebar</li>
-            <li>Adjust the dopant fraction, fabrication method, and PVDF beta fraction</li>
-            <li>Click the "Predict Piezoelectric Properties" button</li>
-            <li>Explore the results in the main area</li>
+            <li>Select a filler material from the sidebar</li>
+            <li>Adjust the dopant fraction and fabrication method</li>
+            <li>Optionally override the beta fraction (or leave as 0.0 for calculated value)</li>
+            <li>Click the <strong>"Predict Piezoelectric Properties"</strong> button</li>
+            <li>Explore the results including the full piezoelectric tensor</li>
         </ol>
+        
+        <p><strong>Available fillers:</strong> {}</p>
     </div>
-    """, unsafe_allow_html=True)
+    """.format(", ".join(fillers)), unsafe_allow_html=True)
 
 # Footer
 st.markdown("---")
 st.markdown("""
 <div style="text-align: center; color: #666; margin-top: 2rem;">
-    <p>PVDF Composite Piezoelectric Predictor | Powered by Machine Learning</p>
+    <p>PVDF Composite Piezoelectric Predictor | Powered by Physics-Informed Machine Learning</p>
 </div>
 """, unsafe_allow_html=True)
