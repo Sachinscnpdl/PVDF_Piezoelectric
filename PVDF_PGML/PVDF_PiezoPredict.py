@@ -113,12 +113,13 @@ st.markdown("""
         flex-direction: column;
         align-items: center;
         margin: 1rem 0;
+        font-family: 'Courier New', monospace;
     }
     .tensor-row {
         display: flex;
         width: 100%;
         justify-content: center;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.3rem;
     }
     .tensor-cell {
         width: 80px;
@@ -127,9 +128,10 @@ st.markdown("""
         align-items: center;
         justify-content: center;
         font-weight: bold;
-        border-radius: 0.5rem;
-        margin: 0 5px;
+        border-radius: 0.3rem;
+        margin: 0 3px;
         transition: all 0.3s ease;
+        font-size: 1.1rem;
     }
     .tensor-cell:hover {
         transform: scale(1.05);
@@ -140,16 +142,19 @@ st.markdown("""
         font-weight: bold;
     }
     .tensor-zero {
-        background-color: #f0f0f0;
-        color: #888;
+        background-color: #e8f4f8;
+        color: #64b5f6;
+        border: 1px solid #bbdefb;
     }
     .tensor-nonzero {
-        background-color: #e4edf5;
-        color: #1a2980;
+        background-color: #fff3e0;
+        color: #ff9800;
+        border: 1px solid #ffcc02;
     }
     .tensor-negative {
         background-color: #ffebee;
-        color: #c62828;
+        color: #f44336;
+        border: 1px solid #ef9a9a;
     }
     .tensor-label {
         width: 40px;
@@ -160,6 +165,13 @@ st.markdown("""
         font-weight: bold;
         color: #1a2980;
         margin-right: 10px;
+    }
+    .tensor-bracket {
+        font-size: 4rem;
+        font-weight: bold;
+        color: #1a2980;
+        line-height: 1;
+        margin: 0 10px;
     }
     .property-card {
         background: linear-gradient(135deg, #ffffff 0%, #f5f7fa 100%);
@@ -415,11 +427,13 @@ if predict_button:
             st.markdown('</div>', unsafe_allow_html=True)
     
     with col_tensor:
-        # Improved tensor visualization in proper matrix form
+        # Improved tensor visualization in proper matrix form with distinct colors
         st.markdown('<h3 style="color: #1a2980; margin-bottom: 1rem;">Piezoelectric Tensor Matrix</h3>', unsafe_allow_html=True)
         st.markdown('<div class="tensor-visualization">', unsafe_allow_html=True)
         
-        # Create a proper matrix representation
+        # Create a proper matrix representation with brackets
+        st.markdown('<div style="display: flex; align-items: center; justify-content: center;">', unsafe_allow_html=True)
+        st.markdown('<div class="tensor-bracket">[</div>', unsafe_allow_html=True)
         st.markdown('<div class="tensor-matrix">', unsafe_allow_html=True)
         
         # Column headers
@@ -445,6 +459,8 @@ if predict_button:
                 st.markdown(f'<div class="tensor-cell {css_class}">{value:.2f}</div>', unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
         
+        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('<div class="tensor-bracket">]</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
     
