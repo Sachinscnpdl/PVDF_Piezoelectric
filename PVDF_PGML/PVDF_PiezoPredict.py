@@ -108,24 +108,58 @@ st.markdown("""
         transform: translateY(-2px);
         box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
     }
+    .tensor-matrix {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin: 1rem 0;
+    }
+    .tensor-row {
+        display: flex;
+        width: 100%;
+        justify-content: center;
+        margin-bottom: 0.5rem;
+    }
     .tensor-cell {
-        font-size: 1.2rem;
+        width: 80px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         font-weight: bold;
-        text-align: center;
-        padding: 0.8rem;
         border-radius: 0.5rem;
+        margin: 0 5px;
         transition: all 0.3s ease;
     }
     .tensor-cell:hover {
         transform: scale(1.05);
     }
     .tensor-header {
-        font-size: 1.1rem;
-        font-weight: bold;
-        text-align: center;
-        padding: 0.5rem;
         background-color: #e4edf5;
-        border-radius: 0.5rem;
+        color: #1a2980;
+        font-weight: bold;
+    }
+    .tensor-zero {
+        background-color: #f0f0f0;
+        color: #888;
+    }
+    .tensor-nonzero {
+        background-color: #e4edf5;
+        color: #1a2980;
+    }
+    .tensor-negative {
+        background-color: #ffebee;
+        color: #c62828;
+    }
+    .tensor-label {
+        width: 40px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: #1a2980;
+        margin-right: 10px;
     }
     .property-card {
         background: linear-gradient(135deg, #ffffff 0%, #f5f7fa 100%);
@@ -182,52 +216,6 @@ st.markdown("""
         left: 0;
         color: #26d0ce;
         font-weight: bold;
-    }
-    .tensor-container {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-    .tensor-row {
-        display: flex;
-        gap: 0.5rem;
-        justify-content: space-between;
-    }
-    .tensor-label {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        color: #1a2980;
-        background-color: #e4edf5;
-        border-radius: 0.5rem;
-        padding: 0.5rem;
-        min-width: 40px;
-    }
-    .tensor-value {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        border-radius: 0.5rem;
-        padding: 0.5rem;
-        min-width: 80px;
-        transition: all 0.3s ease;
-    }
-    .tensor-value:hover {
-        transform: scale(1.05);
-    }
-    .tensor-zero {
-        background-color: #f0f0f0;
-        color: #888;
-    }
-    .tensor-nonzero {
-        background-color: #e4edf5;
-        color: #1a2980;
-    }
-    .tensor-negative {
-        background-color: #ffebee;
-        color: #c62828;
     }
     .footnote {
         font-size: 0.9rem;
@@ -427,21 +415,21 @@ if predict_button:
             st.markdown('</div>', unsafe_allow_html=True)
     
     with col_tensor:
-        # Improved tensor visualization
+        # Improved tensor visualization in proper matrix form
         st.markdown('<h3 style="color: #1a2980; margin-bottom: 1rem;">Piezoelectric Tensor Matrix</h3>', unsafe_allow_html=True)
         st.markdown('<div class="tensor-visualization">', unsafe_allow_html=True)
         
-        # Create a more visually appealing tensor representation
-        st.markdown('<div class="tensor-container">', unsafe_allow_html=True)
+        # Create a proper matrix representation
+        st.markdown('<div class="tensor-matrix">', unsafe_allow_html=True)
         
-        # Row labels
+        # Column headers
         st.markdown('<div class="tensor-row">', unsafe_allow_html=True)
         st.markdown('<div class="tensor-label"></div>', unsafe_allow_html=True)
         for j in range(6):
-            st.markdown(f'<div class="tensor-label">d{j+1}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="tensor-cell tensor-header">d{j+1}</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
         
-        # Tensor values
+        # Matrix rows with row labels
         for i in range(3):
             st.markdown('<div class="tensor-row">', unsafe_allow_html=True)
             st.markdown(f'<div class="tensor-label">d{i+1}</div>', unsafe_allow_html=True)
@@ -454,7 +442,7 @@ if predict_button:
                 else:
                     css_class = "tensor-nonzero"
                 
-                st.markdown(f'<div class="tensor-value {css_class}">{value:.2f}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="tensor-cell {css_class}">{value:.2f}</div>', unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
         
         st.markdown('</div>', unsafe_allow_html=True)
@@ -548,7 +536,7 @@ else:
     <div class="footnote">
         <p><strong>Reference:</strong> This work is based on the following paper (yet to be published):</p>
         <p>"Phase Characterization, Enhanced Piezoelectric Performance, and Device Potential of Electrospun PVDF/SnO2 Nanofibers via Physics-Guided Machine Learning"</p>
-        <p>Sachin Poudel∗, Weronika Smok, Rubi Thapa, Anna Timofiejczuk, Nele Moelans and Anil Kunwar</p>
+        <p>Sachin Poudela,∗, Weronika Smoka, Rubi Thapab, Anna Timofiejczuka, Nele Moelansc and Anil Kunwar</p>
     </div>
     """, unsafe_allow_html=True)
 
