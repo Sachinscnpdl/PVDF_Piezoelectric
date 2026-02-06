@@ -114,6 +114,10 @@ st.markdown("""
         text-align: center;
         padding: 0.8rem;
         border-radius: 0.5rem;
+        transition: all 0.3s ease;
+    }
+    .tensor-cell:hover {
+        transform: scale(1.05);
     }
     .tensor-header {
         font-size: 1.1rem;
@@ -178,6 +182,60 @@ st.markdown("""
         left: 0;
         color: #26d0ce;
         font-weight: bold;
+    }
+    .tensor-container {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .tensor-row {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: space-between;
+    }
+    .tensor-label {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: #1a2980;
+        background-color: #e4edf5;
+        border-radius: 0.5rem;
+        padding: 0.5rem;
+        min-width: 40px;
+    }
+    .tensor-value {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        border-radius: 0.5rem;
+        padding: 0.5rem;
+        min-width: 80px;
+        transition: all 0.3s ease;
+    }
+    .tensor-value:hover {
+        transform: scale(1.05);
+    }
+    .tensor-zero {
+        background-color: #f0f0f0;
+        color: #888;
+    }
+    .tensor-nonzero {
+        background-color: #e4edf5;
+        color: #1a2980;
+    }
+    .tensor-negative {
+        background-color: #ffebee;
+        color: #c62828;
+    }
+    .footnote {
+        font-size: 0.9rem;
+        color: #666;
+        font-style: italic;
+        margin-top: 2rem;
+        padding: 1rem;
+        border-top: 1px solid #e0e0e0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -326,103 +384,81 @@ if predict_button:
     # Display results
     st.markdown('<h2 class="sub-header">Prediction Results</h2>', unsafe_allow_html=True)
     
-    # Key metrics in cards
-    col1, col2, col3, col4, col5 = st.columns(5)
+    # Create side-by-side layout for results and tensor
+    col_results, col_tensor = st.columns([1, 1])
     
-    with col1:
-        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        st.markdown('<h3 style="color: #1a2980;">d33</h3>', unsafe_allow_html=True)
-        st.markdown(f'<h2 style="font-weight: bold; color: #26d0ce;">{predicted_d33:.2f} pC/N</h2>', unsafe_allow_html=True)
+    with col_results:
+        # Key metrics in cards
+        st.markdown('<h3 style="color: #1a2980; margin-bottom: 1rem;">Piezoelectric Coefficients</h3>', unsafe_allow_html=True)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+            st.markdown('<h3 style="color: #1a2980;">d33</h3>', unsafe_allow_html=True)
+            st.markdown(f'<h2 style="font-weight: bold; color: #26d0ce;">{predicted_d33:.2f} pC/N</h2>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            st.markdown('<div class="metric-card" style="margin-top: 1rem;">', unsafe_allow_html=True)
+            st.markdown('<h3 style="color: #1a2980;">d31</h3>', unsafe_allow_html=True)
+            st.markdown(f'<h2 style="font-weight: bold; color: #26d0ce;">{phys_d31:.2f} pC/N</h2>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            st.markdown('<div class="metric-card" style="margin-top: 1rem;">', unsafe_allow_html=True)
+            st.markdown('<h3 style="color: #1a2980;">d32</h3>', unsafe_allow_html=True)
+            st.markdown(f'<h2 style="font-weight: bold; color: #26d0ce;">{phys_d32:.2f} pC/N</h2>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+            st.markdown('<h3 style="color: #1a2980;">d15</h3>', unsafe_allow_html=True)
+            st.markdown(f'<h2 style="font-weight: bold; color: #26d0ce;">{phys_d15:.2f} pC/N</h2>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            st.markdown('<div class="metric-card" style="margin-top: 1rem;">', unsafe_allow_html=True)
+            st.markdown('<h3 style="color: #1a2980;">d24</h3>', unsafe_allow_html=True)
+            st.markdown(f'<h2 style="font-weight: bold; color: #26d0ce;">{phys_d24:.2f} pC/N</h2>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Add some additional info in the second column
+            st.markdown('<div class="metric-card" style="margin-top: 1rem;">', unsafe_allow_html=True)
+            st.markdown('<h3 style="color: #1a2980;">Filler</h3>', unsafe_allow_html=True)
+            st.markdown(f'<h2 style="font-weight: bold; color: #26d0ce;">{selected_filler}</h2>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+    
+    with col_tensor:
+        # Improved tensor visualization
+        st.markdown('<h3 style="color: #1a2980; margin-bottom: 1rem;">Piezoelectric Tensor Matrix</h3>', unsafe_allow_html=True)
+        st.markdown('<div class="tensor-visualization">', unsafe_allow_html=True)
+        
+        # Create a more visually appealing tensor representation
+        st.markdown('<div class="tensor-container">', unsafe_allow_html=True)
+        
+        # Row labels
+        st.markdown('<div class="tensor-row">', unsafe_allow_html=True)
+        st.markdown('<div class="tensor-label"></div>', unsafe_allow_html=True)
+        for j in range(6):
+            st.markdown(f'<div class="tensor-label">d{j+1}</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        st.markdown('<h3 style="color: #1a2980;">d31</h3>', unsafe_allow_html=True)
-        st.markdown(f'<h2 style="font-weight: bold; color: #26d0ce;">{phys_d31:.2f} pC/N</h2>', unsafe_allow_html=True)
+        
+        # Tensor values
+        for i in range(3):
+            st.markdown('<div class="tensor-row">', unsafe_allow_html=True)
+            st.markdown(f'<div class="tensor-label">d{i+1}</div>', unsafe_allow_html=True)
+            for j in range(6):
+                value = tensor_matrix[i, j]
+                if abs(value) < 1e-10:
+                    css_class = "tensor-zero"
+                elif value < 0:
+                    css_class = "tensor-negative"
+                else:
+                    css_class = "tensor-nonzero"
+                
+                st.markdown(f'<div class="tensor-value {css_class}">{value:.2f}</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+        
         st.markdown('</div>', unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        st.markdown('<h3 style="color: #1a2980;">d32</h3>', unsafe_allow_html=True)
-        st.markdown(f'<h2 style="font-weight: bold; color: #26d0ce;">{phys_d32:.2f} pC/N</h2>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
-    
-    with col4:
-        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        st.markdown('<h3 style="color: #1a2980;">d15</h3>', unsafe_allow_html=True)
-        st.markdown(f'<h2 style="font-weight: bold; color: #26d0ce;">{phys_d15:.2f} pC/N</h2>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    with col5:
-        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        st.markdown('<h3 style="color: #1a2980;">d24</h3>', unsafe_allow_html=True)
-        st.markdown(f'<h2 style="font-weight: bold; color: #26d0ce;">{phys_d24:.2f} pC/N</h2>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Piezoelectric tensor visualization
-    st.markdown('<h2 class="sub-header">Piezoelectric Tensor Matrix</h2>', unsafe_allow_html=True)
-    st.markdown('<div class="tensor-visualization">', unsafe_allow_html=True)
-    
-    # Display tensor matrix in a 3x6 format
-    col1, col2, col3, col4, col5, col6 = st.columns(6)
-    
-    # Header row
-    with col1:
-        st.markdown('<div class="tensor-header">d₁₁</div>', unsafe_allow_html=True)
-    with col2:
-        st.markdown('<div class="tensor-header">d₁₂</div>', unsafe_allow_html=True)
-    with col3:
-        st.markdown('<div class="tensor-header">d₁₃</div>', unsafe_allow_html=True)
-    with col4:
-        st.markdown('<div class="tensor-header">d₁₄</div>', unsafe_allow_html=True)
-    with col5:
-        st.markdown('<div class="tensor-header">d₁₅</div>', unsafe_allow_html=True)
-    with col6:
-        st.markdown('<div class="tensor-header">d₁₆</div>', unsafe_allow_html=True)
-    
-    # First row
-    with col1:
-        st.markdown(f'<div class="tensor-cell" style="background-color: #f0f0f0;">{tensor_matrix[0,0]:.2f}</div>', unsafe_allow_html=True)
-    with col2:
-        st.markdown(f'<div class="tensor-cell" style="background-color: #f0f0f0;">{tensor_matrix[0,1]:.2f}</div>', unsafe_allow_html=True)
-    with col3:
-        st.markdown(f'<div class="tensor-cell" style="background-color: #f0f0f0;">{tensor_matrix[0,2]:.2f}</div>', unsafe_allow_html=True)
-    with col4:
-        st.markdown(f'<div class="tensor-cell" style="background-color: #f0f0f0;">{tensor_matrix[0,3]:.2f}</div>', unsafe_allow_html=True)
-    with col5:
-        st.markdown(f'<div class="tensor-cell" style="background-color: #e4edf5;">{tensor_matrix[0,4]:.2f}</div>', unsafe_allow_html=True)
-    with col6:
-        st.markdown(f'<div class="tensor-cell" style="background-color: #f0f0f0;">{tensor_matrix[0,5]:.2f}</div>', unsafe_allow_html=True)
-    
-    # Second row
-    with col1:
-        st.markdown(f'<div class="tensor-cell" style="background-color: #f0f0f0;">{tensor_matrix[1,0]:.2f}</div>', unsafe_allow_html=True)
-    with col2:
-        st.markdown(f'<div class="tensor-cell" style="background-color: #f0f0f0;">{tensor_matrix[1,1]:.2f}</div>', unsafe_allow_html=True)
-    with col3:
-        st.markdown(f'<div class="tensor-cell" style="background-color: #f0f0f0;">{tensor_matrix[1,2]:.2f}</div>', unsafe_allow_html=True)
-    with col4:
-        st.markdown(f'<div class="tensor-cell" style="background-color: #e4edf5;">{tensor_matrix[1,3]:.2f}</div>', unsafe_allow_html=True)
-    with col5:
-        st.markdown(f'<div class="tensor-cell" style="background-color: #f0f0f0;">{tensor_matrix[1,4]:.2f}</div>', unsafe_allow_html=True)
-    with col6:
-        st.markdown(f'<div class="tensor-cell" style="background-color: #f0f0f0;">{tensor_matrix[1,5]:.2f}</div>', unsafe_allow_html=True)
-    
-    # Third row
-    with col1:
-        st.markdown(f'<div class="tensor-cell" style="background-color: #e4edf5;">{tensor_matrix[2,0]:.2f}</div>', unsafe_allow_html=True)
-    with col2:
-        st.markdown(f'<div class="tensor-cell" style="background-color: #e4edf5;">{tensor_matrix[2,1]:.2f}</div>', unsafe_allow_html=True)
-    with col3:
-        st.markdown(f'<div class="tensor-cell" style="background-color: #e4edf5;">{tensor_matrix[2,2]:.2f}</div>', unsafe_allow_html=True)
-    with col4:
-        st.markdown(f'<div class="tensor-cell" style="background-color: #f0f0f0;">{tensor_matrix[2,3]:.2f}</div>', unsafe_allow_html=True)
-    with col5:
-        st.markdown(f'<div class="tensor-cell" style="background-color: #f0f0f0;">{tensor_matrix[2,4]:.2f}</div>', unsafe_allow_html=True)
-    with col6:
-        st.markdown(f'<div class="tensor-cell" style="background-color: #f0f0f0;">{tensor_matrix[2,5]:.2f}</div>', unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
     
     # Material properties
     st.markdown('<h2 class="sub-header">Material Properties</h2>', unsafe_allow_html=True)
@@ -472,6 +508,15 @@ if predict_button:
             file_name=f"piezoelectric_prediction_{selected_filler}_{dopant_fraction}%.csv",
             mime="text/csv"
         )
+    
+    # Add footnote with paper reference
+    st.markdown("""
+    <div class="footnote">
+        <p><strong>Reference:</strong> This work is based on the following paper (yet to be published):</p>
+        <p>"Phase Characterization, Enhanced Piezoelectric Performance, and Device Potential of Electrospun PVDF/SnO2 Nanofibers via Physics-Guided Machine Learning"</p>
+        <p>Sachin Poudela,∗, Weronika Smoka, Rubi Thapab, Anna Timofiejczuka, Nele Moelansc and Anil Kunwar</p>
+    </div>
+    """, unsafe_allow_html=True)
 else:
     # Welcome screen when no prediction has been made
     st.markdown('<div class="welcome-card">', unsafe_allow_html=True)
@@ -497,6 +542,15 @@ else:
         """, unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Add footnote with paper reference
+    st.markdown("""
+    <div class="footnote">
+        <p><strong>Reference:</strong> This work is based on the following paper (yet to be published):</p>
+        <p>"Phase Characterization, Enhanced Piezoelectric Performance, and Device Potential of Electrospun PVDF/SnO2 Nanofibers via Physics-Guided Machine Learning"</p>
+        <p>Sachin Poudel∗, Weronika Smok, Rubi Thapa, Anna Timofiejczuk, Nele Moelans and Anil Kunwar</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 # Footer
 st.markdown("---")
