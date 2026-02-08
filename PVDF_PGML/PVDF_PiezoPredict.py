@@ -233,7 +233,7 @@ with st.sidebar:
         
         # Input fields with default values as requested
         selected_filler = st.selectbox("Select Filler", fillers, index=fillers.index('SnO2') if 'SnO2' in fillers else 0)
-        dopant_fraction = st.slider("Dopant Fraction (%)", min_value=0.1, max_value=10.0, value=1.5, step=0.1)
+        dopant_fraction = st.slider("Dopant Fraction (%)", min_value=0.0, max_value=10.0, value=1.5, step=0.1)
         fabrication_method = st.selectbox("Fabrication Method", ["Electrospinning", "Solution casting", "Poling", "Sol-gel"])
         beta_fraction = st.number_input("Beta Fraction (optional override)", min_value=0.0, max_value=1.0, value=0.5725, step=0.01, 
                                        help="Leave as 0.0 to use calculated value based on dopant")
