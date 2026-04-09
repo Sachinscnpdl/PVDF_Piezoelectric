@@ -236,7 +236,15 @@ with st.sidebar:
         dopant_fraction = st.slider("Dopant Fraction (%)", min_value=0.02, max_value=10.0, value=1.5, step=0.1)
         fabrication_method = st.selectbox("Fabrication Method", ["Electrospinning", "Solution casting", "Poling", "Sol-gel"])
         beta_fraction = st.number_input("Beta Fraction (optional override)", min_value=0.0, max_value=1.0, value=0.5725, step=0.01, 
-                                       help="Leave as 0.0 to use calculated value based on dopant")
+                                       help="Leave as 0.0 to use calculated value. Values above 0.6 apply a damping effect.")
+        
+        # --- NEW: Damping Logic for Beta Fraction ---
+        damping_factor = 0.3  # Change this value (0.0 to 1.0) to tune the sensitivity above 0.6
+        if beta_fraction > 0.6:
+            effective_beta = 0.6 + (beta_fraction - 0.6) * damping_factor
+        else:
+            effective_beta = beta_fraction
+        # ------------------------------------------
         
         # Display filler properties
         st.markdown('<h3 class="sub-header">Filler Properties</h3>', unsafe_allow_html=True)
@@ -287,7 +295,7 @@ if predict_button:
                 dopant=selected_filler,
                 frac=dopant_fraction,
                 method=fabrication_method,
-                beta_fraction=beta_fraction if beta_fraction > 0 else None,
+                beta_fraction=effective_beta if effective_beta > 0 else None,
                 device='cpu'
             )
             
@@ -307,7 +315,9 @@ if predict_button:
                 "Dopant": selected_filler,
                 "Dopant Fraction (%)": f"{dopant_fraction:.1f}",
                 "Fabrication Method": fabrication_method,
-                "PVDF Beta Fraction": f"{df['PVDF_Beta_Fraction_used'].iloc[0]:.4f}",
+                "Input Beta Fraction": f"{beta_fraction:.4f}",
+                "Effective Beta (Damped)": f"{effective_beta:.4f}",
+                "Model Beta Used": f"{df['PVDF_Beta_Fraction_used'].iloc[0]:.4f}",
                 "Effective Dielectric Constant": f"{df['Effective Dielectric Constant'].iloc[0]:.4f}",
                 "Effective Young's Modulus": f"{df['Effective Youngs Modulus'].iloc[0]:.4f} GPa",
                 "Effective Poisson's Ratio": f"{df['Effective Poissons Ratio'].iloc[0]:.4f}",
@@ -469,9 +479,9 @@ if predict_button:
     with col2:
         # Create a DataFrame with all results
         results_df = pd.DataFrame({
-            'Parameter': ['Dopant', 'Dopant Fraction (%)', 'Fabrication Method', 'PVDF Beta Fraction', 
+            'Parameter': ['Dopant', 'Dopant Fraction (%)', 'Fabrication Method', 'Input Beta Fraction', 'Effective Beta', 
                           'd33 (pC/N)', 'd31 (pC/N)', 'd32 (pC/N)', 'd15 (pC/N)', 'd24 (pC/N)'],
-            'Value': [selected_filler, dopant_fraction, fabrication_method, beta_fraction,
+            'Value': [selected_filler, dopant_fraction, fabrication_method, beta_fraction, effective_beta,
                       f"{predicted_d33:.4f}", f"{phys_d31:.4f}", f"{phys_d32:.4f}", 
                       f"{phys_d15:.4f}", f"{phys_d24:.4f}"]
         })
