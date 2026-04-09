@@ -1,13 +1,9 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go
-import plotly.express as px
-import matplotlib.pyplot as plt
-import seaborn as sns
 import os
-import json
 import sys
+import traceback
 
 # ---------- Page Configuration ----------
 st.set_page_config(
@@ -80,9 +76,6 @@ st.markdown("""
         font-weight: 600;
         color: #1a2980;
     }
-    .tensor-cell-zero { background-color: #eef2ff; color: #1e3a8a; }
-    .tensor-cell-pos { background-color: #fffbeb; color: #b45309; }
-    .tensor-cell-neg { background-color: #fee2e2; color: #b91c1c; }
     .stButton > button {
         background: linear-gradient(100deg, #1a2980, #26d0ce);
         color: white;
@@ -175,7 +168,7 @@ with st.sidebar:
     if selected_filler in properties:
         st.markdown("### 🧪 Filler Properties")
         filler_df = pd.DataFrame([{k:v for k,v in properties[selected_filler].items() if not k.startswith('_')}])
-        st.dataframe(filler_df.T, use_container_width=True, header=False)
+        st.dataframe(filler_df.T, use_container_width=True)  # Fixed: removed header=False
 
     predict_clicked = st.button("🔮 Predict Properties", type="primary", use_container_width=True)
 
@@ -195,7 +188,7 @@ st.caption("Physics‑informed machine learning for PVDF‑based composites")
 
 if not predict_clicked:
     # Welcome screen
-    st.markdown("""
+    st.markdown(f"""
     <div class="welcome-card">
         <h2 style="color:#1a2980;">✨ Welcome</h2>
         <p>Predict piezoelectric coefficients (<i>d</i><sub>33</sub>, <i>d</i><sub>31</sub>, <i>d</i><sub>15</sub>, ...) for PVDF composites using a physics‑guided neural network.</p>
@@ -205,9 +198,9 @@ if not predict_clicked:
             <li>Optionally override β‑phase fraction</li>
             <li>Click <strong>Predict Properties</strong></li>
         </ul>
-        <p><strong>Available fillers:</strong> {}</p>
+        <p><strong>Available fillers:</strong> {', '.join(fillers)}</p>
     </div>
-    """.format(", ".join(fillers)), unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
     show_footer()
     st.stop()
 
