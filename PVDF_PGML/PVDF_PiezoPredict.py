@@ -70,9 +70,6 @@ st.markdown("""
         background: linear-gradient(120deg, #26d0ce, #1a2980);
         transform: translateY(-2px);
     }
-    .tensor-zero { background-color: #e8f4f8; color: #1976d2; }
-    .tensor-neg { background-color: #ffebee; color: #d32f2f; }
-    .tensor-pos { background-color: #fff3e0; color: #f57c00; }
     .info-box {
         background: #f8f9fa;
         border-radius: 0.5rem;
@@ -81,13 +78,20 @@ st.markdown("""
         font-size: 0.85rem;
         color: #666;
     }
+    .legend-dot {
+        width: 16px;
+        height: 16px;
+        display: inline-block;
+        margin-right: 4px;
+        vertical-align: middle;
+        border-radius: 3px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 st.markdown('<h1 class="main-header">PVDF Composite Piezoelectric Predictor</h1>', unsafe_allow_html=True)
 st.markdown('<p style="text-align:center;color:#555;margin-bottom:1.5rem;">Physics-informed ML prediction of piezoelectric coefficients</p>', unsafe_allow_html=True)
 
-# --- Load Dependencies ---
 missing_files = []
 properties_data = None
 
@@ -102,10 +106,9 @@ except Exception as e:
 try:
     sys.path.insert(0, current_dir)
     from piezoelectric_tensor_predictor import predict_sample
-except Exception as e:
+except Exception:
     missing_files.append("predictor module")
 
-# --- Sidebar ---
 with st.sidebar:
     st.markdown('<div class="sidebar-panel">', unsafe_allow_html=True)
     st.markdown('<h2 class="section-header">Input Parameters</h2>', unsafe_allow_html=True)
@@ -115,7 +118,7 @@ with st.sidebar:
         selected_filler = st.selectbox("Filler Material", fillers, index=fillers.index('SnO2') if 'SnO2' in fillers else 0)
         dopant_fraction = st.slider("Dopant Fraction (%)", 0.02, 10.0, 1.5, 0.1)
         fabrication_method = st.selectbox("Fabrication Method", ["Electrospinning", "Solution casting", "Poling", "Sol-gel"])
-        beta_fraction = st.number_input("Beta Fraction Override", 0.0, 1.0, 0.5725, 0.01, help="0.0 = use calculated value. >0.6 applies damping.")
+        beta_fraction = st.number_input("Beta Fraction Override", 0.0, 1.0, 0.5725, 0.01, help="0.0 = calculated. >0.6 applies damping.")
         
         damping_factor = 0.3
         effective_beta = 0.6 + (beta_fraction - 0.6) * damping_factor if beta_fraction > 0.6 else beta_fraction
@@ -140,7 +143,6 @@ if missing_files:
     st.error(f"Missing: {', '.join(missing_files)}")
     st.stop()
 
-# --- Results ---
 if properties_data and predict_button:
     with st.spinner("Predicting..."):
         try:
@@ -184,7 +186,6 @@ if properties_data and predict_button:
     
     st.success("✅ Prediction complete")
     
-    # Coefficients & Tensor
     col_res, col_ten = st.columns([1, 1])
     
     with col_res:
@@ -199,25 +200,26 @@ if properties_data and predict_button:
     
     with col_ten:
         st.markdown('<h2 class="section-header">Piezoelectric Tensor</h2>', unsafe_allow_html=True)
-        tensor_df = pd.DataFrame(tensor, index=["d₁", "d₂", "d₃"], columns=["1", "2", "3", "4", "5", "6"])
         
         def style_tensor(val):
-            if abs(val) < 1e-10: return 'tensor-zero'
-            return 'tensor-neg' if val < 0 else 'tensor-pos'
+            if abs(val) < 1e-10:
+                return 'background-color: #e8f4f8; color: #1976d2; font-weight: bold; border: 1px solid rgba(0,0,0,0.1); text-align: center;'
+            elif val < 0:
+                return 'background-color: #ffebee; color: #d32f2f; font-weight: bold; border: 1px solid rgba(0,0,0,0.1); text-align: center;'
+            else:
+                return 'background-color: #fff3e0; color: #f57c00; font-weight: bold; border: 1px solid rgba(0,0,0,0.1); text-align: center;'
         
-        styled = tensor_df.style.map(style_tensor).set_properties(**{
-            'font-weight': 'bold', 'border': '1px solid rgba(0,0,0,0.1)', 'text-align': 'center'
-        })
+        tensor_df = pd.DataFrame(tensor, index=["d₁", "d₂", "d₃"], columns=["1", "2", "3", "4", "5", "6"])
+        styled = tensor_df.style.map(style_tensor)
         st.dataframe(styled, use_container_width=True)
         
         st.markdown('''<div style="display:flex;justify-content:center;gap:12px;margin-top:8px;">
-            <div style="display:flex;align-items:center;gap:4px;"><div class="tensor-zero" style="width:16px;height:16px;"></div><span style="font-size:0.8rem;color:#666;">Zero</span></div>
-            <div style="display:flex;align-items:center;gap:4px;"><div class="tensor-pos" style="width:16px;height:16px;"></div><span style="font-size:0.8rem;color:#666;">Positive</span></div>
-            <div style="display:flex;align-items:center;gap:4px;"><div class="tensor-neg" style="width:16px;height:16px;"></div><span style="font-size:0.8rem;color:#666;">Negative</span></div>
+            <div style="display:flex;align-items:center;"><span class="legend-dot" style="background:#e8f4f8;border:1px solid #90caf9;"></span><span style="font-size:0.8rem;color:#666;">Zero</span></div>
+            <div style="display:flex;align-items:center;"><span class="legend-dot" style="background:#fff3e0;border:1px solid #ffb74d;"></span><span style="font-size:0.8rem;color:#666;">Positive</span></div>
+            <div style="display:flex;align-items:center;"><span class="legend-dot" style="background:#ffebee;border:1px solid #ef9a9a;"></span><span style="font-size:0.8rem;color:#666;">Negative</span></div>
         </div>''', unsafe_allow_html=True)
         st.markdown('<div class="info-box">Rows: polarization (X,Y,Z) • Columns: stress directions (Voigt notation)</div>', unsafe_allow_html=True)
     
-    # Material Properties
     st.markdown('<h2 class="section-header">Computed Properties</h2>', unsafe_allow_html=True)
     fc1, fc2 = st.columns(2)
     items = list(features.items())
@@ -228,7 +230,6 @@ if properties_data and predict_button:
                 <span style="color:#26d0ce;font-weight:bold;">{v}</span>
             </div>''', unsafe_allow_html=True)
     
-    # Download
     st.markdown("---")
     results_df = pd.DataFrame({
         'Parameter': ['Filler', 'Fraction (%)', 'Method', 'β Fraction'] + list(coeffs.keys()),
@@ -239,7 +240,6 @@ if properties_data and predict_button:
                       f"pvdf_{selected_filler}_{dopant_fraction}%.csv", "text/csv")
 
 else:
-    # Welcome
     st.markdown('''<div class="card" style="text-align:left;padding:2rem;">
         <h2 style="color:#1a2980;margin-bottom:1rem;">Welcome</h2>
         <p style="line-height:1.8;color:#444;">
@@ -256,7 +256,6 @@ else:
         fillers = [f for f in properties_data.keys() if f != 'PVDF']
         st.markdown(f'<div class="info-box">Available fillers: {", ".join(fillers)}</div>', unsafe_allow_html=True)
 
-# Footer
 st.markdown("""---
 <div style="text-align:center;color:#888;font-size:0.85rem;padding:1rem;">
     PVDF Composite Piezoelectric Predictor | Physics-Informed ML<br>
