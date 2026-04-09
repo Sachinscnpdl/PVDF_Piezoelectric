@@ -3,303 +3,262 @@ import pandas as pd
 import numpy as np
 import os
 import sys
-import traceback
+import importlib.util
 
-# ---------- Page Configuration ----------
 st.set_page_config(
-    page_title="PVDF Composite Piezoelectric Predictor",
+    page_title="PVDF Piezoelectric Predictor",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# ---------- Paths ----------
 current_dir = os.path.dirname(os.path.abspath(__file__))
 materials_properties_path = os.path.join(current_dir, 'materials_properties.py')
 checkpoint_path = os.path.join(current_dir, 'best_phys_resid_monotonic_improved_v2.pt')
 predictor_path = os.path.join(current_dir, 'piezoelectric_tensor_predictor.py')
 
-# ---------- Constants ----------
-FOOTNOTE_TEXT = """
-**Reference:** This work is based on the following paper (yet to be published):
-"Phase Characterization, Enhanced Piezoelectric Performance, and Device Potential of Electrospun PVDF/SnO2 Nanofibers via Physics-Guided Machine Learning"
-Sachin Poudel,∗, Weronika Smok, Rubi Thapa, Anna Timofiejczuk, Nele Moelans and Anil Kunwar
-"""
-
-# ---------- CSS (Minimal & Elegant) ----------
 st.markdown("""
 <style>
     .main-header {
-        font-size: 2.6rem;
-        font-weight: 700;
+        font-size: 2.5rem;
+        font-weight: bold;
         text-align: center;
-        background: linear-gradient(135deg, #1a2980, #26d0ce);
+        background: linear-gradient(120deg, #1a2980, #26d0ce, #1a2980);
+        background-size: 200% auto;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        margin-bottom: 0.5rem;
+        animation: gradient 3s ease infinite;
     }
-    .sub-header {
-        font-size: 1.5rem;
-        font-weight: 600;
+    @keyframes gradient {
+        0% {background-position: 0% 50%}
+        50% {background-position: 100% 50%}
+        100% {background-position: 0% 50%}
+    }
+    .section-header {
+        font-size: 1.4rem;
+        font-weight: bold;
         color: #1a2980;
-        margin: 1rem 0 0.8rem 0;
-        border-left: 4px solid #26d0ce;
-        padding-left: 0.8rem;
+        border-bottom: 2px solid #26d0ce;
+        padding-bottom: 0.3rem;
+        margin-bottom: 1rem;
     }
-    .metric-card {
-        background: white;
-        border-radius: 1rem;
-        padding: 1.2rem;
-        text-align: center;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        transition: transform 0.2s;
-        height: 100%;
-    }
-    .metric-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 6px 16px rgba(0,0,0,0.1);
-    }
-    .property-card {
-        background: #f8fafc;
+    .card {
+        background: linear-gradient(135deg, #ffffff 0%, #f5f7fa 100%);
         border-radius: 0.8rem;
-        padding: 0.8rem 1.2rem;
-        margin-bottom: 0.6rem;
-        border-left: 3px solid #26d0ce;
-    }
-    .property-name {
-        font-size: 0.85rem;
-        color: #4b5563;
-        letter-spacing: 0.5px;
-    }
-    .property-value {
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: #1a2980;
-    }
-    .stButton > button {
-        background: linear-gradient(100deg, #1a2980, #26d0ce);
-        color: white;
-        font-weight: 500;
-        border-radius: 2rem;
-        padding: 0.5rem 1.2rem;
-        border: none;
-        transition: 0.2s;
-    }
-    .stButton > button:hover {
-        transform: scale(1.02);
-        opacity: 0.95;
-    }
-    .welcome-card {
-        background: linear-gradient(145deg, #f9fafb, #ffffff);
-        border-radius: 1.5rem;
-        padding: 2rem;
-        box-shadow: 0 8px 20px rgba(0,0,0,0.05);
-        margin: 1rem 0;
-    }
-    .footer {
+        padding: 1.2rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         text-align: center;
-        color: #6c757d;
-        font-size: 0.8rem;
-        margin-top: 2rem;
-        padding-top: 1rem;
-        border-top: 1px solid #e9ecef;
+        transition: transform 0.2s ease;
     }
-    .file-status {
-        background: #f1f5f9;
-        border-radius: 1rem;
+    .card:hover { transform: translateY(-3px); }
+    .card-label { color: #1a2980; font-size: 1rem; margin-bottom: 0.3rem; }
+    .card-value { color: #26d0ce; font-size: 1.3rem; font-weight: bold; }
+    .sidebar-panel {
+        background: linear-gradient(135deg, #f5f7fa 0%, #e4edf5 100%);
+        padding: 1.2rem;
+        border-radius: 0.8rem;
+    }
+    .stButton>button {
+        background: linear-gradient(120deg, #1a2980, #26d0ce);
+        color: white;
+        font-weight: bold;
+        border-radius: 0.8rem;
+        border: none;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .stButton>button:hover {
+        background: linear-gradient(120deg, #26d0ce, #1a2980);
+        transform: translateY(-2px);
+    }
+    .tensor-zero { background-color: #e8f4f8; color: #1976d2; }
+    .tensor-neg { background-color: #ffebee; color: #d32f2f; }
+    .tensor-pos { background-color: #fff3e0; color: #f57c00; }
+    .info-box {
+        background: #f8f9fa;
+        border-radius: 0.5rem;
         padding: 0.8rem;
-        margin-top: 1.5rem;
+        margin-top: 0.8rem;
+        font-size: 0.85rem;
+        color: #666;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# ---------- Helper Functions ----------
-@st.cache_resource
-def load_materials():
-    """Load materials properties once and cache."""
-    import importlib.util
-    spec = importlib.util.spec_from_file_location("materials_properties", materials_properties_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module.properties
-
-def display_property_card(name, value):
-    st.markdown(f"""
-    <div class="property-card">
-        <div class="property-name">{name}</div>
-        <div class="property-value">{value}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-def display_metric(label, value, unit="pC/N"):
-    st.markdown(f"""
-    <div class="metric-card">
-        <div style="font-size:1rem; font-weight:500; color:#1a2980;">{label}</div>
-        <div style="font-size:2rem; font-weight:700; color:#26d0ce;">{value:.2f} {unit}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-def show_footer():
-    st.markdown(f'<div class="footer"><p>{FOOTNOTE_TEXT.replace(chr(10), "<br>")}</p></div>', unsafe_allow_html=True)
-
-# ---------- Sidebar ----------
-with st.sidebar:
-    st.markdown("## ⚙️ Input Parameters")
-
-    # Load properties
-    try:
-        properties = load_materials()
-        fillers = [f for f in properties.keys() if f != 'PVDF']
-    except Exception as e:
-        st.error(f"Failed to load materials: {e}")
-        st.stop()
-
-    selected_filler = st.selectbox("Filler", fillers, index=fillers.index('SnO2') if 'SnO2' in fillers else 0)
-    dopant_fraction = st.slider("Dopant Fraction (%)", 0.02, 10.0, 1.5, 0.1)
-    fabrication_method = st.selectbox("Fabrication Method", ["Electrospinning", "Solution casting", "Poling", "Sol-gel"])
-    beta_fraction = st.number_input("Beta Fraction (optional override)", 0.0, 1.0, 0.5725, 0.01,
-                                    help="Leave as 0.0 to use calculated value. Values >0.6 are damped.")
-
-    # Damping logic
-    DAMPING_FACTOR = 0.3
-    effective_beta = beta_fraction if beta_fraction <= 0.6 else 0.6 + (beta_fraction - 0.6) * DAMPING_FACTOR
-
-    # Filler properties preview
-    if selected_filler in properties:
-        st.markdown("### 🧪 Filler Properties")
-        filler_df = pd.DataFrame([{k:v for k,v in properties[selected_filler].items() if not k.startswith('_')}])
-        st.dataframe(filler_df.T, use_container_width=True)  # Fixed: removed header=False
-
-    predict_clicked = st.button("🔮 Predict Properties", type="primary", use_container_width=True)
-
-    # File status
-    with st.expander("📁 File Status", expanded=False):
-        for name, path in [("materials_properties.py", materials_properties_path),
-                           ("model checkpoint", checkpoint_path),
-                           ("predictor module", predictor_path)]:
-            if os.path.exists(path):
-                st.success(f"✓ {name}")
-            else:
-                st.error(f"✗ {name} missing")
-
-# ---------- Main Area ----------
 st.markdown('<h1 class="main-header">PVDF Composite Piezoelectric Predictor</h1>', unsafe_allow_html=True)
-st.caption("Physics‑informed machine learning for PVDF‑based composites")
+st.markdown('<p style="text-align:center;color:#555;margin-bottom:1.5rem;">Physics-informed ML prediction of piezoelectric coefficients</p>', unsafe_allow_html=True)
 
-if not predict_clicked:
-    # Welcome screen
-    st.markdown(f"""
-    <div class="welcome-card">
-        <h2 style="color:#1a2980;">✨ Welcome</h2>
-        <p>Predict piezoelectric coefficients (<i>d</i><sub>33</sub>, <i>d</i><sub>31</sub>, <i>d</i><sub>15</sub>, ...) for PVDF composites using a physics‑guided neural network.</p>
-        <ul>
-            <li>Choose a filler and its concentration</li>
-            <li>Select fabrication method</li>
-            <li>Optionally override β‑phase fraction</li>
-            <li>Click <strong>Predict Properties</strong></li>
-        </ul>
-        <p><strong>Available fillers:</strong> {', '.join(fillers)}</p>
-    </div>
-    """, unsafe_allow_html=True)
-    show_footer()
+# --- Load Dependencies ---
+missing_files = []
+properties_data = None
+
+try:
+    spec = importlib.util.spec_from_file_location("materials_properties", materials_properties_path)
+    materials_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(materials_module)
+    properties_data = materials_module.properties
+except Exception as e:
+    missing_files.append("materials_properties.py")
+
+try:
+    sys.path.insert(0, current_dir)
+    from piezoelectric_tensor_predictor import predict_sample
+except Exception as e:
+    missing_files.append("predictor module")
+
+# --- Sidebar ---
+with st.sidebar:
+    st.markdown('<div class="sidebar-panel">', unsafe_allow_html=True)
+    st.markdown('<h2 class="section-header">Input Parameters</h2>', unsafe_allow_html=True)
+    
+    if properties_data:
+        fillers = [f for f in properties_data.keys() if f != 'PVDF']
+        selected_filler = st.selectbox("Filler Material", fillers, index=fillers.index('SnO2') if 'SnO2' in fillers else 0)
+        dopant_fraction = st.slider("Dopant Fraction (%)", 0.02, 10.0, 1.5, 0.1)
+        fabrication_method = st.selectbox("Fabrication Method", ["Electrospinning", "Solution casting", "Poling", "Sol-gel"])
+        beta_fraction = st.number_input("Beta Fraction Override", 0.0, 1.0, 0.5725, 0.01, help="0.0 = use calculated value. >0.6 applies damping.")
+        
+        damping_factor = 0.3
+        effective_beta = 0.6 + (beta_fraction - 0.6) * damping_factor if beta_fraction > 0.6 else beta_fraction
+        
+        st.markdown('<h3 class="section-header">Filler Properties</h3>', unsafe_allow_html=True)
+        filler_props = {k: v for k, v in properties_data[selected_filler].items() 
+                       if not k.startswith('_') and not k.startswith('comment')}
+        if filler_props:
+            st.dataframe(pd.DataFrame(list(filler_props.items()), columns=["Property", "Value"]), 
+                        use_container_width=True, hide_index=True, height=200)
+        
+        predict_button = st.button("⚡ Predict", type="primary", use_container_width=True)
+    
+    st.markdown('<div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid #e0e0e0;">', unsafe_allow_html=True)
+    for name, path in [("materials_properties.py", materials_properties_path), 
+                       ("Model checkpoint", checkpoint_path), 
+                       ("Predictor module", predictor_path)]:
+        (st.success if os.path.exists(path) else st.error)(f"{'✓' if os.path.exists(path) else '✗'} {name}")
+    st.markdown('</div></div>', unsafe_allow_html=True)
+
+if missing_files:
+    st.error(f"Missing: {', '.join(missing_files)}")
     st.stop()
 
-# ---------- Prediction ----------
-with st.spinner("Calculating piezoelectric response..."):
-    try:
-        sys.path.insert(0, current_dir)
-        from piezoelectric_tensor_predictor import predict_sample
+# --- Results ---
+if properties_data and predict_button:
+    with st.spinner("Predicting..."):
+        try:
+            df = predict_sample(
+                checkpoint_path=checkpoint_path,
+                dopant=selected_filler,
+                frac=dopant_fraction,
+                method=fabrication_method,
+                beta_fraction=effective_beta if effective_beta > 0 else None,
+                device='cpu'
+            )
+            if not isinstance(df, pd.DataFrame):
+                df = pd.DataFrame([df])
+            
+            coeffs = {
+                'd33': float(df['predicted_d33'].iloc[0]),
+                'd31': float(df['phys_d31'].iloc[0]),
+                'd32': float(df['phys_d32'].iloc[0]),
+                'd15': float(df['phys_d15'].iloc[0]),
+                'd24': float(df['phys_d24'].iloc[0])
+            }
+            tensor = np.array([
+                [0, 0, 0, 0, coeffs['d15'], 0],
+                [0, 0, 0, coeffs['d24'], 0, 0],
+                [coeffs['d31'], coeffs['d32'], -coeffs['d33'], 0, 0, 0]
+            ])
+            features = {
+                "Filler Category": properties_data[selected_filler].get('Filler_Category', '-'),
+                "Effective β Fraction": f"{effective_beta:.4f}",
+                "Dielectric Constant": f"{df['Effective Dielectric Constant'].iloc[0]:.4f}",
+                "Young's Modulus": f"{df['Effective Youngs Modulus'].iloc[0]:.4f} GPa",
+                "Poisson's Ratio": f"{df['Effective Poissons Ratio'].iloc[0]:.4f}",
+                "Physics Base d33": f"{df['physics_base_d33'].iloc[0]:.4f} pC/N",
+                "Learned Δ d33": f"{df['learned_delta_d33'].iloc[0]:.4f} pC/N"
+            }
+        except Exception as e:
+            st.error(f"Prediction error: {e}")
+            import traceback
+            st.code(traceback.format_exc())
+            st.stop()
+    
+    st.success("✅ Prediction complete")
+    
+    # Coefficients & Tensor
+    col_res, col_ten = st.columns([1, 1])
+    
+    with col_res:
+        st.markdown('<h2 class="section-header">Piezoelectric Coefficients</h2>', unsafe_allow_html=True)
+        c1, c2 = st.columns(2)
+        for i, (name, val) in enumerate(coeffs.items()):
+            with c1 if i < 3 else c2:
+                st.markdown(f'''<div class="card" style="margin-bottom:0.8rem;">
+                    <div class="card-label">{name}</div>
+                    <div class="card-value">{val:.2f} pC/N</div>
+                </div>''', unsafe_allow_html=True)
+    
+    with col_ten:
+        st.markdown('<h2 class="section-header">Piezoelectric Tensor</h2>', unsafe_allow_html=True)
+        tensor_df = pd.DataFrame(tensor, index=["d₁", "d₂", "d₃"], columns=["1", "2", "3", "4", "5", "6"])
+        
+        def style_tensor(val):
+            if abs(val) < 1e-10: return 'tensor-zero'
+            return 'tensor-neg' if val < 0 else 'tensor-pos'
+        
+        styled = tensor_df.style.map(style_tensor).set_properties(**{
+            'font-weight': 'bold', 'border': '1px solid rgba(0,0,0,0.1)', 'text-align': 'center'
+        })
+        st.dataframe(styled, use_container_width=True)
+        
+        st.markdown('''<div style="display:flex;justify-content:center;gap:12px;margin-top:8px;">
+            <div style="display:flex;align-items:center;gap:4px;"><div class="tensor-zero" style="width:16px;height:16px;"></div><span style="font-size:0.8rem;color:#666;">Zero</span></div>
+            <div style="display:flex;align-items:center;gap:4px;"><div class="tensor-pos" style="width:16px;height:16px;"></div><span style="font-size:0.8rem;color:#666;">Positive</span></div>
+            <div style="display:flex;align-items:center;gap:4px;"><div class="tensor-neg" style="width:16px;height:16px;"></div><span style="font-size:0.8rem;color:#666;">Negative</span></div>
+        </div>''', unsafe_allow_html=True)
+        st.markdown('<div class="info-box">Rows: polarization (X,Y,Z) • Columns: stress directions (Voigt notation)</div>', unsafe_allow_html=True)
+    
+    # Material Properties
+    st.markdown('<h2 class="section-header">Computed Properties</h2>', unsafe_allow_html=True)
+    fc1, fc2 = st.columns(2)
+    items = list(features.items())
+    for i, (k, v) in enumerate(items):
+        with fc1 if i < len(items)//2 else fc2:
+            st.markdown(f'''<div class="card" style="margin-bottom:0.6rem;text-align:left;padding:0.8rem 1rem;">
+                <span style="color:#1a2980;font-weight:600;">{k}:</span> 
+                <span style="color:#26d0ce;font-weight:bold;">{v}</span>
+            </div>''', unsafe_allow_html=True)
+    
+    # Download
+    st.markdown("---")
+    results_df = pd.DataFrame({
+        'Parameter': ['Filler', 'Fraction (%)', 'Method', 'β Fraction'] + list(coeffs.keys()),
+        'Value': [selected_filler, dopant_fraction, fabrication_method, effective_beta] + 
+                 [f"{v:.4f}" for v in coeffs.values()]
+    })
+    st.download_button("📥 Download CSV", results_df.to_csv(index=False),
+                      f"pvdf_{selected_filler}_{dopant_fraction}%.csv", "text/csv")
 
-        df = predict_sample(
-            checkpoint_path=checkpoint_path,
-            dopant=selected_filler,
-            frac=dopant_fraction,
-            method=fabrication_method,
-            beta_fraction=effective_beta if effective_beta > 0 else None,
-            device='cpu'
-        )
-        if not isinstance(df, pd.DataFrame):
-            df = pd.DataFrame([df])
+else:
+    # Welcome
+    st.markdown('''<div class="card" style="text-align:left;padding:2rem;">
+        <h2 style="color:#1a2980;margin-bottom:1rem;">Welcome</h2>
+        <p style="line-height:1.8;color:#444;">
+            Predict piezoelectric coefficients for PVDF composites using physics-informed ML.<br><br>
+            <strong>Steps:</strong><br>
+            → Select filler material (sidebar)<br>
+            → Adjust dopant fraction & fabrication method<br>
+            → Optionally override β fraction<br>
+            → Click <strong>"Predict"</strong> to view results
+        </p>
+    </div>''', unsafe_allow_html=True)
+    
+    if properties_data:
+        fillers = [f for f in properties_data.keys() if f != 'PVDF']
+        st.markdown(f'<div class="info-box">Available fillers: {", ".join(fillers)}</div>', unsafe_allow_html=True)
 
-        # Extract coefficients
-        d33 = float(df['predicted_d33'].iloc[0])
-        d31 = float(df['phys_d31'].iloc[0])
-        d32 = float(df['phys_d32'].iloc[0])
-        d15 = float(df['phys_d15'].iloc[0])
-        d24 = float(df['phys_d24'].iloc[0])
-
-        # Build feature dictionary
-        features = {
-            "Dopant": selected_filler,
-            "Dopant fraction": f"{dopant_fraction:.1f} %",
-            "Fabrication": fabrication_method,
-            "Input β": f"{beta_fraction:.4f}",
-            "Effective β (damped)": f"{effective_beta:.4f}",
-            "Model β used": f"{df['PVDF_Beta_Fraction_used'].iloc[0]:.4f}",
-            "Dielectric constant εᵣ": f"{df['Effective Dielectric Constant'].iloc[0]:.2f}",
-            "Young's modulus": f"{df['Effective Youngs Modulus'].iloc[0]:.1f} GPa",
-            "Poisson's ratio": f"{df['Effective Poissons Ratio'].iloc[0]:.3f}",
-            "Physics base d33": f"{df['physics_base_d33'].iloc[0]:.2f} pC/N",
-            "Learned Δd33": f"{df['learned_delta_d33'].iloc[0]:.2f} pC/N",
-            "Filler category": properties.get(selected_filler, {}).get('Filler_Category', '—')
-        }
-
-        # Piezoelectric tensor (Voigt notation)
-        tensor = np.array([
-            [0, 0, 0, 0, d15, 0],
-            [0, 0, 0, d24, 0, 0],
-            [d31, d32, -d33, 0, 0, 0]
-        ])
-        tensor_df = pd.DataFrame(tensor, index=["d₁ (X)", "d₂ (Y)", "d₃ (Z)"],
-                                 columns=["1", "2", "3", "4", "5", "6"])
-
-        st.success("✅ Prediction successful")
-    except Exception as e:
-        st.error(f"Prediction failed: {e}")
-        st.code(traceback.format_exc())
-        st.stop()
-
-# ---------- Results Display ----------
-st.markdown('<div class="sub-header">📊 Piezoelectric Coefficients</div>', unsafe_allow_html=True)
-col1, col2 = st.columns(2)
-
-with col1:
-    display_metric("d₃₃ (longitudinal)", d33)
-    display_metric("d₃₁ (transverse)", d31)
-with col2:
-    display_metric("d₁₅ (shear)", d15)
-    display_metric("d₂₄ (shear)", d24)
-
-# Tensor visualization
-st.markdown('<div class="sub-header">🔢 Piezoelectric Tensor (Voigt notation)</div>', unsafe_allow_html=True)
-
-def style_tensor(val):
-    if abs(val) < 1e-6:
-        return 'background-color: #eef2ff; color: #1e3a8a; font-weight:500'
-    return 'background-color: #fffbeb; color: #b45309; font-weight:500' if val > 0 else 'background-color: #fee2e2; color: #b91c1c; font-weight:500'
-
-styled_tensor = tensor_df.style.map(style_tensor).format("{:.2f}")
-st.dataframe(styled_tensor, use_container_width=True)
-
-# Additional properties
-st.markdown('<div class="sub-header">📋 Material Properties</div>', unsafe_allow_html=True)
-prop_cols = st.columns(2)
-items = list(features.items())
-mid = len(items)//2 + (len(items)%2)
-for i, (key, val) in enumerate(items[:mid]):
-    with prop_cols[0]:
-        display_property_card(key, val)
-for i, (key, val) in enumerate(items[mid:]):
-    with prop_cols[1]:
-        display_property_card(key, val)
-
-# Download
-result_data = pd.DataFrame({
-    "Parameter": ["d₃₃", "d₃₁", "d₃₂", "d₁₅", "d₂₄", "Filler", "Fraction (%)", "Method", "β input", "β effective"],
-    "Value": [f"{d33:.4f}", f"{d31:.4f}", f"{d32:.4f}", f"{d15:.4f}", f"{d24:.4f}",
-              selected_filler, dopant_fraction, fabrication_method, beta_fraction, effective_beta]
-})
-csv = result_data.to_csv(index=False)
-st.download_button("📥 Download Results (CSV)", csv, f"piezo_{selected_filler}_{dopant_fraction}%.csv", "text/csv")
-
-show_footer()
+# Footer
+st.markdown("""---
+<div style="text-align:center;color:#888;font-size:0.85rem;padding:1rem;">
+    PVDF Composite Piezoelectric Predictor | Physics-Informed ML<br>
+    <em>Poudel et al. - "Phase Characterization, Enhanced Piezoelectric Performance, and Device Potential of Electrospun PVDF/SnO2 Nanofibers via Physics-Guided Machine Learning" (Unpublished)</em>
+</div>""", unsafe_allow_html=True)
