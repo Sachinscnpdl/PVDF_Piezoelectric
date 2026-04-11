@@ -6,7 +6,7 @@ import sys
 import importlib.util
 
 st.set_page_config(
-    page_title="PGML PVDF Piezoelectric Predictor",
+    page_title="PGMLpiezo PVDF",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -176,8 +176,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="main-header">PVDF ⚡ Piezoelectric Predictor</div>', unsafe_allow_html=True)
-st.markdown('<div class="subhead">physics‑guided prediction · composite intelligence</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-header">PGMLpiezo  ⚡ PVDF</div>', unsafe_allow_html=True)
+st.markdown('<div class="subhead">Physics‑Guided Machine Learning · composite intelligence</div>', unsafe_allow_html=True)
 
 missing_files = []
 properties_data = None
