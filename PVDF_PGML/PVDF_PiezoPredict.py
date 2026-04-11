@@ -341,3 +341,5 @@ else:
         st.markdown(f'<div style="background:#eef2ff; border-radius:1rem; padding:0.5rem 1rem; font-size:0.8rem; color:#1e3a8a;">📌 available fillers: {", ".join(fillers)}</div>', unsafe_allow_html=True)
 
 st.markdown('<div class="footer-note">PVDF composite predictor · physics‑guided learning · Poudel et al.</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer-note">While the toolkit is designed to be applicable to different fillers, it has been demonstrated in this study using metallic fillers with the corresponding β-phase fraction as input.</div>', unsafe_allow_html=True)
+ 
