@@ -6,7 +6,7 @@ import sys
 import importlib.util
 
 st.set_page_config(
-    page_title="PVDF Piezoelectric Predictor",
+    page_title="PGML PVDF Piezoelectric Predictor",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
