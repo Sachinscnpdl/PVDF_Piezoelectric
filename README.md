@@ -15,7 +15,7 @@ c. Named entity recognition (NER)
  [![piezoinformaticsgithub](https://img.shields.io/badge/piezoinformatics-github-red)](https://github.com/anilkunwar/piezoelectricity_informatics) (Link to github repository about Piezoelectricity Informatics)
 
 # Machine Learning
- [![machinelearningpiezoelectricpolymer](https://img.shields.io/badge/pgmlxpiezoapp-v1-brightgreen.svg)](https://pgmlpiezo.streamlit.app/) ( Web App for Inverse Design of S-doped PVDF)
+ [![machinelearningpiezoelectricpolymer](https://img.shields.io/badge/pgmlxpiezoappv1-webApp-brightgreen.svg)](https://pgmlpiezo.streamlit.app/) ( Web App for Inverse Design of S-doped PVDF)
 
 # Finite element analysis
 a. Expression for conversion between [d_ij] (C/N) and [e_ij] (C/m^2). 
